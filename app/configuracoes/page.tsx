@@ -2,7 +2,7 @@
 
 /**
  * ============================================================================
- * TELA: CONFIGURAÇÕES DO MOTORISTA (COM CADASTRO DE NOVAS PLACAS)
+ * TELA: CONFIGURAÇÕES DO MOTORISTA (CORRIGIDA PARA COMPILAÇÃO VERCEL)
  * Localização no VS Code: motorista/app/configuracoes/page.tsx
  * Tecnologias: Next.js (React / TypeScript)
  * Descrição: Exibe as placas vinculadas ao CPF do motorista e permite
@@ -136,8 +136,8 @@ export default function ConfiguracoesMotoristaPage() {
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', color: '#0f172a' }}>
       
-      {/* NAVBAR PADRÃO */}
-      <Navbar usuario={motoristaLogado} />
+      {/* NAVBAR PADRÃO (Sem passar props incompatíveis para o TypeScript) */}
+      <Navbar />
 
       {/* CONTEÚDO PRINCIPAL DA PÁGINA */}
       <main style={{ marginLeft: '260px', flex: 1, padding: '2rem 3rem' }}>
@@ -234,7 +234,7 @@ export default function ConfiguracoesMotoristaPage() {
                     onChange={(e) => setNovaPlacaInput(e.target.value.toUpperCase())}
                     placeholder="Ex: XYZ9876"
                     required
-                    style={{ ...estilos.input, textTransform: 'uppercase', fontWeight: '800' }}
+                    style={{ ...estilos.input, textTransform: 'toUpperCase', fontWeight: '800' }}
                   />
                 </div>
 
