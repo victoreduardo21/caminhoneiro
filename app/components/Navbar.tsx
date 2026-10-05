@@ -41,7 +41,6 @@ export default function Navbar() {
   }, []);
 
   const itensMenu = [
-    { nome: '📊 Visão Geral', rota: '/dashboard' },
     { nome: '📋 Minutas', rota: '/minutas' },
     { nome: '🗺️ Rotas e Valores', rota: '/rotas' },
     { nome: '⚙️ Configurações', rota: '/configuracoes' },

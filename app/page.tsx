@@ -56,7 +56,7 @@ export default function LoginCaminhoneiroPage() {
       
       // Redireciona para o Painel Principal do Motorista
       setTimeout(() => {
-        router.push('/dashboard');
+        router.push('/minutas');
       }, 1000);
     } catch (erro: any) {
       console.error('❌ Erro de login:', erro);
