@@ -2,32 +2,22 @@
 
 /**
  * ============================================================================
- * TELA: CONFIGURAÇÕES DO MOTORISTA (CORRIGIDA PARA COMPILAÇÃO VERCEL)
+ * TELA: CONFIGURAÇÕES DO MOTORISTA (INTEGRADA COM MONGODB ATLAS)
  * Localização no VS Code: motorista/app/configuracoes/page.tsx
- * Tecnologias: Next.js (React / TypeScript)
- * Descrição: Exibe as placas vinculadas ao CPF do motorista e permite
- *            vincular novos veículos via modal com chamada à API Express.
+ * Tecnologias: Next.js (React / TypeScript), Node.js (API Express)
+ * Descrição: Carrega os dados reais dos caminhoneiros salvos no MongoDB
+ *            e permite cadastrar novas placas via modal.
  * ============================================================================
  */
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Navbar from '../components/Navbar';
-
-interface MotoristaSessao {
-  id?: string;
-  nome: string;
-  cpf?: string;
-  placa?: string;
-  placas?: string[];
-  pix?: string;
-  whatsapp?: string;
-}
+import Navbar, { MotoristaSessao } from '../components/Navbar';
 
 export default function ConfiguracoesMotoristaPage() {
   const router = useRouter();
 
-  // Estados principais da sessão local
+  // Estados principais da sessão local e banco
   const [motoristaLogado, setMotoristaLogado] = useState<MotoristaSessao | null>(null);
   const [listaPlacas, setListaPlacas] = useState<string[]>([]);
 
@@ -39,32 +29,72 @@ export default function ConfiguracoesMotoristaPage() {
 
   // Estados de feedback visual
   const [carregando, setCarregando] = useState(false);
+  const [buscandoDadosBanco, setBuscandoDadosBanco] = useState(true);
   const [mensagemStatus, setMensagemStatus] = useState('');
 
-  // 1. Carrega os dados da sessão guardados no localStorage
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+  // 1. Carrega o motorista da sessão e sincroniza com os dados reais do MongoDB Atlas
   useEffect(() => {
-    const dadosSalvos = localStorage.getItem('motorista') || localStorage.getItem('usuario') || localStorage.getItem('user');
+    const carregarDadosDoBanco = async () => {
+      const dadosSalvos = localStorage.getItem('motorista') || localStorage.getItem('usuario') || localStorage.getItem('user');
 
-    if (!dadosSalvos) {
-      router.push('/');
-      return;
-    }
+      if (!dadosSalvos) {
+        router.push('/');
+        return;
+      }
 
-    try {
-      const objMotorista: MotoristaSessao = JSON.parse(dadosSalvos);
-      setMotoristaLogado(objMotorista);
+      try {
+        const objSessao: MotoristaSessao = JSON.parse(dadosSalvos);
+        setMotoristaLogado(objSessao);
 
-      // Organiza e limpa a lista de placas iniciais do motorista
-      const placasIniciais = Array.isArray(objMotorista.placas) && objMotorista.placas.length > 0
-        ? objMotorista.placas
-        : objMotorista.placa ? [objMotorista.placa] : [];
+        // Busca a lista atualizada de caminhoneiros no backend
+        const resposta = await fetch(`${apiUrl}/caminhoneiros`);
+        const dadosApi = await resposta.json();
 
-      setListaPlacas(placasIniciais.filter(Boolean));
-    } catch (erro) {
-      console.error('Erro ao ler sessão do motorista:', erro);
-      router.push('/');
-    }
-  }, [router]);
+        if (resposta.ok && dadosApi.sucesso && Array.isArray(dadosApi.dados)) {
+          // Procura o motorista logado pelo CPF na coleção 'caminhoneiros'
+          const cpfSessaoLimpo = String(objSessao.cpf || '').replace(/\D/g, '');
+          const motoristaBanco = dadosApi.dados.find(
+            (c: any) => String(c.cpf || '').replace(/\D/g, '') === cpfSessaoLimpo
+          );
+
+          if (motoristaBanco) {
+            // Extrai as placas salvas no banco de dados
+            const placasDoBanco = Array.isArray(motoristaBanco.placas) && motoristaBanco.placas.length > 0
+              ? motoristaBanco.placas
+              : motoristaBanco.placa ? [motoristaBanco.placa] : [];
+
+            setListaPlacas(placasDoBanco.filter(Boolean));
+
+            // Atualiza o estado da sessão local com os dados vindos do banco
+            const motoristaAtualizado: MotoristaSessao = {
+              ...objSessao,
+              nome: motoristaBanco.nome || objSessao.nome,
+              placas: placasDoBanco,
+              pix: motoristaBanco.pix || objSessao.pix,
+            };
+
+            setMotoristaLogado(motoristaAtualizado);
+            localStorage.setItem('motorista', JSON.stringify(motoristaAtualizado));
+          } else {
+            // Se não encontrou no banco, usa as placas guardadas na sessão
+            const placasIniciais = Array.isArray(objSessao.placas) && objSessao.placas.length > 0
+              ? objSessao.placas
+              : objSessao.placa ? [objSessao.placa] : [];
+
+            setListaPlacas(placasIniciais.filter(Boolean));
+          }
+        }
+      } catch (erro) {
+        console.error('⚠️ Erro ao consultar dados no backend:', erro);
+      } finally {
+        setBuscandoDadosBanco(false);
+      }
+    };
+
+    carregarDadosDoBanco();
+  }, [router, apiUrl]);
 
   // 2. Envia a nova placa para o backend (/caminhoneiros/adicionar-placa)
   const handleCadastrarNovaPlaca = async (e: React.FormEvent) => {
@@ -76,12 +106,9 @@ export default function ConfiguracoesMotoristaPage() {
     }
 
     setCarregando(true);
-    setMensagemStatus('⏳ A registar nova placa...');
-
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    setMensagemStatus('⏳ A registar nova placa no banco de dados...');
 
     try {
-      // Faz a requisição PUT para o endpoint atualizado no backend Express
       const resposta = await fetch(`${apiUrl}/caminhoneiros/adicionar-placa`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -95,9 +122,8 @@ export default function ConfiguracoesMotoristaPage() {
 
       const textoResposta = await resposta.text();
 
-      // Tratamento de segurança contra erros em formato HTML
       if (textoResposta.trim().startsWith('<')) {
-        throw new Error('A rota do servidor (/caminhoneiros/adicionar-placa) não foi encontrada ou o servidor está offline.');
+        throw new Error('A rota do servidor (/caminhoneiros/adicionar-placa) não foi encontrada.');
       }
 
       const resultado = JSON.parse(textoResposta);
@@ -106,17 +132,17 @@ export default function ConfiguracoesMotoristaPage() {
         const novasPlacasAtualizadas = resultado.placas || [...listaPlacas, novaPlacaInput.trim().toUpperCase()];
         setListaPlacas(novasPlacasAtualizadas);
 
-        // Atualiza a sessão salva no localStorage do navegador
         const motoristaAtualizado = {
           ...motoristaLogado,
+          nome: motoristaLogado?.nome || 'Motorista',
           placas: novasPlacasAtualizadas,
           pix: pixInput.trim() || motoristaLogado?.pix,
         };
 
         localStorage.setItem('motorista', JSON.stringify(motoristaAtualizado));
-        localStorage.setItem('usuario', JSON.stringify(motoristaAtualizado));
+        setMotoristaLogado(motoristaAtualizado);
 
-        setMensagemStatus(`✅ Placa ${novaPlacaInput.toUpperCase()} vinculada com sucesso!`);
+        setMensagemStatus(`✅ Placa ${novaPlacaInput.toUpperCase()} vinculada com sucesso no MongoDB!`);
         setNovaPlacaInput('');
         setPixInput('');
         setContatoInput('');
@@ -131,13 +157,21 @@ export default function ConfiguracoesMotoristaPage() {
     }
   };
 
+  if (buscandoDadosBanco) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f8fafc', color: '#0f172a', fontWeight: 'bold' }}>
+        <p>⏳ A carregar dados do caminhoneiro no banco de dados...</p>
+      </div>
+    );
+  }
+
   if (!motoristaLogado) return null;
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', color: '#0f172a' }}>
       
-      {/* NAVBAR PADRÃO (Sem passar props incompatíveis para o TypeScript) */}
-      <Navbar />
+      {/* NAVBAR PADRÃO (Com passagem de props tipada em TypeScript) */}
+      <Navbar usuario={motoristaLogado} />
 
       {/* CONTEÚDO PRINCIPAL DA PÁGINA */}
       <main style={{ marginLeft: '260px', flex: 1, padding: '2rem 3rem' }}>
@@ -152,7 +186,6 @@ export default function ConfiguracoesMotoristaPage() {
             </p>
           </div>
 
-          {/* BOTÃO PARA ABRIR O MODAL */}
           <button
             onClick={() => setMostrarModal(true)}
             style={{
@@ -171,40 +204,43 @@ export default function ConfiguracoesMotoristaPage() {
           </button>
         </header>
 
-        {/* MENSAGEM DE FEEDBACK */}
         {mensagemStatus && (
           <div style={{ marginBottom: '1.5rem', padding: '0.85rem', borderRadius: '8px', fontSize: '0.9rem', fontWeight: '700', textAlign: 'center', backgroundColor: mensagemStatus.includes('❌') ? '#fef2f2' : '#f0fdf4', color: mensagemStatus.includes('❌') ? '#991b1b' : '#166534', border: '1px solid', borderColor: mensagemStatus.includes('❌') ? '#fecaca' : '#bbf7d0' }}>
             {mensagemStatus}
           </div>
         )}
 
-        {/* LISTA DE PLACAS REGISTADAS */}
+        {/* LISTA DE PLACAS PUXADAS DIRETO DO MONGODB */}
         <section style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '2rem', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', maxWidth: '900px' }}>
           <h2 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a', marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
-            🚚 Placas Cadastradas para {motoristaLogado.nome} ({listaPlacas.length})
+            🚚 Placas Cadastradas no Banco para {motoristaLogado.nome} ({listaPlacas.length})
           </h2>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.5rem' }}>
-            {listaPlacas.map((placaItem, index) => (
-              <div
-                key={index}
-                style={{
-                  border: '2px solid #000000',
-                  borderRadius: '8px',
-                  backgroundColor: '#ffffff',
-                  textAlign: 'center',
-                  overflow: 'hidden',
-                  boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
-                }}
-              >
-                <div style={{ backgroundColor: '#003399', color: '#ffffff', fontSize: '0.65rem', fontWeight: '800', padding: '0.2rem 0' }}>
-                  BRASIL
+            {listaPlacas.length > 0 ? (
+              listaPlacas.map((placaItem, index) => (
+                <div
+                  key={index}
+                  style={{
+                    border: '2px solid #000000',
+                    borderRadius: '8px',
+                    backgroundColor: '#ffffff',
+                    textAlign: 'center',
+                    overflow: 'hidden',
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+                  }}
+                >
+                  <div style={{ backgroundColor: '#003399', color: '#ffffff', fontSize: '0.65rem', fontWeight: '800', padding: '0.2rem 0' }}>
+                    BRASIL
+                  </div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#000000', padding: '0.4rem 0', letterSpacing: '2px' }}>
+                    {placaItem}
+                  </div>
                 </div>
-                <div style={{ fontSize: '1.6rem', fontWeight: '900', color: '#000000', padding: '0.4rem 0', letterSpacing: '2px' }}>
-                  {placaItem}
-                </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p style={{ color: '#64748b', fontSize: '0.9rem' }}>Nenhuma placa cadastrada para este CPF no momento.</p>
+            )}
           </div>
         </section>
 
@@ -234,7 +270,7 @@ export default function ConfiguracoesMotoristaPage() {
                     onChange={(e) => setNovaPlacaInput(e.target.value.toUpperCase())}
                     placeholder="Ex: XYZ9876"
                     required
-                    style={{ ...estilos.input, textTransform: 'toUpperCase', fontWeight: '800' }}
+                    style={{ ...estilos.input, textTransform: 'uppercase', fontWeight: '800' }}
                   />
                 </div>
 

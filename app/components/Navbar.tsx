@@ -3,10 +3,8 @@
 /**
  * ============================================================================
  * COMPONENTE: BARRA DE NAVEGAÇÃO LATERAL (NAVBAR DO PORTAL DO CAMINHONEIRO)
- * Localização: caminhoneiro/app/components/Navbar.tsx
- * Tecnologias: Next.js 13+ (App Router), React, TypeScript, CSS-in-JS Inline
- * Descrição: Suporta passagem de dados via propriedade 'usuario' ou leitura
- *            automática a partir da sessão guardada no localStorage.
+ * Localização no VS Code: caminhoneiro/app/components/Navbar.tsx
+ * Tecnologias: Next.js 13+ (App Router), React, TypeScript
  * ============================================================================
  */
 
@@ -14,7 +12,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
-// Interface com os dados da sessão do Motorista
+// Interface que define os dados da sessão do motorista
 export interface MotoristaSessao {
   id?: string;
   nome: string;
@@ -25,7 +23,7 @@ export interface MotoristaSessao {
   whatsapp?: string;
 }
 
-// Interface de Propriedades (Props) para o TypeScript
+// CORREÇÃO DO ERRO TS2322: Declaração explícita da propriedade 'usuario'
 export interface NavbarProps {
   usuario?: MotoristaSessao | null;
 }
@@ -34,14 +32,13 @@ export default function Navbar({ usuario }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
-  // Estado com os dados do motorista para exibição no cartão da barra lateral
   const [motorista, setMotorista] = useState<{ nome: string; placas: string[] }>({
     nome: 'Caminhoneiro',
     placas: [],
   });
 
   useEffect(() => {
-    // 1. Se a prop 'usuario' for fornecida pela página pai, utiliza-a diretamente
+    // Se a prop 'usuario' for fornecida pela página, utiliza os dados diretamente
     if (usuario) {
       const placasArray = Array.isArray(usuario.placas) && usuario.placas.length > 0
         ? usuario.placas
@@ -54,7 +51,7 @@ export default function Navbar({ usuario }: NavbarProps) {
       return;
     }
 
-    // 2. Fallback: Tenta obter os dados da sessão local caso a prop não seja passada
+    // Fallback: Tenta obter os dados da sessão local no localStorage
     const dadosSalvos = localStorage.getItem('motorista') || localStorage.getItem('usuario') || localStorage.getItem('user');
 
     if (dadosSalvos) {
@@ -69,19 +66,17 @@ export default function Navbar({ usuario }: NavbarProps) {
           placas: placasArray.filter(Boolean),
         });
       } catch (e) {
-        console.warn('Sessão inválida ou não encontrada no localStorage');
+        console.warn('Sessão não encontrada no localStorage');
       }
     }
   }, [usuario]);
 
-  // Itens do menu de navegação
   const itensMenu = [
     { nome: '📋 Minutas', rota: '/minutas' },
-    { nome: '🗺️ Rotas e Valores', rota: '/rotas' },
+    { nome: '🗺️️ Rotas e Valores', rota: '/rotas' },
     { nome: '⚙️ Configurações', rota: '/configuracoes' },
   ];
 
-  // Função para encerrar sessão
   const handleLogout = () => {
     if (window.confirm('Deseja realmente encerrar a sessão?')) {
       localStorage.removeItem('tokenCaminhoneiro');
@@ -94,7 +89,6 @@ export default function Navbar({ usuario }: NavbarProps) {
 
   return (
     <aside style={estilos.containerSidebar}>
-      {/* Cabeçalho com Logótipo */}
       <div style={estilos.cabecalho}>
         <div style={estilos.iconeLogo}>🚛</div>
         <div>
@@ -103,7 +97,6 @@ export default function Navbar({ usuario }: NavbarProps) {
         </div>
       </div>
 
-      {/* Cartão Informativo do Motorista Logado */}
       <div style={estilos.cardMotorista}>
         <div style={estilos.avatar}>
           {motorista.nome ? motorista.nome.charAt(0).toUpperCase() : 'M'}
@@ -111,14 +104,11 @@ export default function Navbar({ usuario }: NavbarProps) {
         <div style={{ overflow: 'hidden' }}>
           <p style={estilos.nomeMotorista}>{motorista.nome}</p>
           <span style={estilos.placasMotorista}>
-            {motorista.placas.length > 0
-              ? `Placa: ${motorista.placas.join(', ')}`
-              : 'Sem placa vinculada'}
+            {motorista.placas.length > 0 ? `Placa: ${motorista.placas.join(', ')}` : 'Sem placa vinculada'}
           </span>
         </div>
       </div>
 
-      {/* Links do Menu */}
       <nav style={estilos.navegacao}>
         {itensMenu.map((item) => {
           const estaAtivo = pathname === item.rota;
@@ -144,7 +134,6 @@ export default function Navbar({ usuario }: NavbarProps) {
         })}
       </nav>
 
-      {/* Rodapé com botão de Encerrar Sessão */}
       <div style={estilos.rodape}>
         <button onClick={handleLogout} style={estilos.botaoSair}>
           🚪 Sair do Portal
@@ -154,7 +143,6 @@ export default function Navbar({ usuario }: NavbarProps) {
   );
 }
 
-// Objeto de Estilos Inline
 const estilos: { [key: string]: React.CSSProperties } = {
   containerSidebar: {
     width: '250px',
