@@ -2,9 +2,10 @@
 
 /**
  * ============================================================================
- * COMPONENTE: BARRA DE NAVEGAÇÃO LATERAL (NAVBAR DO PORTAL DO CAMINHONEIRO)
+ * COMPONENTE: BARRA DE NAVEGAÇÃO LATERAL (NAVBAR DO MOTORISTA)
  * Localização no VS Code: caminhoneiro/app/components/Navbar.tsx
- * Tecnologias: Next.js 13+ (App Router), React, TypeScript
+ * Tecnologias: Next.js (React / TypeScript)
+ * Descrição: Trata o erro de hidratação (Hydration Mismatch) e exibe os links.
  * ============================================================================
  */
 
@@ -12,7 +13,6 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
-// Interface que define os dados da sessão do motorista
 export interface MotoristaSessao {
   id?: string;
   nome: string;
@@ -23,7 +23,6 @@ export interface MotoristaSessao {
   whatsapp?: string;
 }
 
-// CORREÇÃO DO ERRO TS2322: Declaração explícita da propriedade 'usuario'
 export interface NavbarProps {
   usuario?: MotoristaSessao | null;
 }
@@ -32,13 +31,17 @@ export default function Navbar({ usuario }: NavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
 
+  // Estado para garantir a montagem segura no navegador e evitar Hydration Mismatch
+  const [montado, setMontado] = useState(false);
+
   const [motorista, setMotorista] = useState<{ nome: string; placas: string[] }>({
     nome: 'Caminhoneiro',
     placas: [],
   });
 
   useEffect(() => {
-    // Se a prop 'usuario' for fornecida pela página, utiliza os dados diretamente
+    setMontado(true);
+
     if (usuario) {
       const placasArray = Array.isArray(usuario.placas) && usuario.placas.length > 0
         ? usuario.placas
@@ -51,8 +54,10 @@ export default function Navbar({ usuario }: NavbarProps) {
       return;
     }
 
-    // Fallback: Tenta obter os dados da sessão local no localStorage
-    const dadosSalvos = localStorage.getItem('motorista') || localStorage.getItem('usuario') || localStorage.getItem('user');
+    // Lê a sessão do motorista no localStorage
+    const dadosSalvos = typeof window !== 'undefined' 
+      ? localStorage.getItem('motorista') || localStorage.getItem('usuario') || localStorage.getItem('user')
+      : null;
 
     if (dadosSalvos) {
       try {
@@ -66,19 +71,19 @@ export default function Navbar({ usuario }: NavbarProps) {
           placas: placasArray.filter(Boolean),
         });
       } catch (e) {
-        console.warn('Sessão não encontrada no localStorage');
+        console.warn('Erro ao ler sessão do motorista no localStorage');
       }
     }
   }, [usuario]);
 
   const itensMenu = [
     { nome: '📋 Minutas', rota: '/minutas' },
-    { nome: '🗺️️ Rotas e Valores', rota: '/rotas' },
+    { nome: '🗺 Rotas e Valores', rota: '/rotas' },
     { nome: '⚙️ Configurações', rota: '/configuracoes' },
   ];
 
   const handleLogout = () => {
-    if (window.confirm('Deseja realmente encerrar a sessão?')) {
+    if (typeof window !== 'undefined' && window.confirm('Deseja realmente encerrar a sessão?')) {
       localStorage.removeItem('tokenCaminhoneiro');
       localStorage.removeItem('motorista');
       localStorage.removeItem('usuario');
@@ -86,6 +91,21 @@ export default function Navbar({ usuario }: NavbarProps) {
       router.push('/');
     }
   };
+
+  // Se ainda não montou no cliente, renderiza uma estrutura simples para evitar divergência de HTML
+  if (!montado) {
+    return (
+      <aside style={estilos.containerSidebar}>
+        <div style={estilos.cabecalho}>
+          <div style={estilos.iconeLogo}>🚛</div>
+          <div>
+            <h2 style={estilos.tituloLogo}>PORTAL MOTORISTA</h2>
+            <p style={estilos.subtituloLogo}>Sistema Logístico</p>
+          </div>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside style={estilos.containerSidebar}>
@@ -176,7 +196,7 @@ const estilos: { [key: string]: React.CSSProperties } = {
   nomeMotorista: { margin: 0, fontSize: '0.8rem', fontWeight: '700', color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   placasMotorista: { fontSize: '0.7rem', color: '#38bdf8', fontWeight: '600', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   navegacao: { flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem', overflowY: 'auto' },
-  linkItem: { display: 'flex', alignItems: 'center', padding: '0.65rem 0.85rem', borderRadius: '8px', color: '#94a3b8', textDecoration: 'none', fontSize: '0.85rem', fontWeight: '600', transition: 'all 0.15s ease-in-out' },
+  linkItem: { display: 'flex', alignItems: 'center', padding: '0.65rem 0.85rem', borderRadius: '8px', color: '#94a3b8', textDecoration: 'none', fontSize: '0.85rem', fontWeight: '600' },
   linkItemAtivo: { backgroundColor: '#2563eb', color: '#ffffff', fontWeight: '700' },
   indicador: { width: '6px', height: '6px', borderRadius: '50%', marginRight: '0.65rem', flexShrink: 0 },
   textoItem: { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
