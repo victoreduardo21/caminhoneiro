@@ -2,11 +2,11 @@
 
 /**
  * ============================================================================
- * PORTAL DO CAMINHONEIRO: CONSULTA DE ROTAS E FRETES (CORREÇÃO TYPESCRIPT)
+ * PORTAL DO CAMINHONEIRO: CONSULTA DE ROTAS E FRETES (PADRÃO PADRONIZADO)
  * Localização no VS Code: caminhoneiro/app/rotas/page.tsx
  * Tecnologias: Next.js (App Router), React, TypeScript
- * Descrição: Corrige a propriedade de estilo CSS para passar na validação do 
- *            TypeScript durante o comando 'next build' na Vercel.
+ * Descrição: Exibe a tabela de fretes do motorista com suporte a URL de API
+ *            dinâmica e tratamento de exceções de rede.
  * ============================================================================
  */
 
@@ -34,8 +34,9 @@ export default function RotasCaminhoneiroPage() {
   const [carregando, setCarregando] = useState(false);
   const [erroApi, setErroApi] = useState('');
 
-  // Endpoint do Servidor Express
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  // Endpoint do Servidor Express (Lê da variável de ambiente ou usa fallback local)
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
   // Formatação de valores em Reais (R$)
   const formatarMoeda = (valor: number) => {
     return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -47,7 +48,10 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     setErroApi('');
 
     try {
-      const url = `${apiUrl}/rotas-valores?busca=${encodeURIComponent(termo)}`;
+      // Remove barra no final da URL da API para evitar caminhos duplicados
+      const baseUrl = apiUrl.replace(/\/$/, '');
+      const url = `${baseUrl}/rotas-valores?busca=${encodeURIComponent(termo)}`;
+
       const res = await fetch(url, {
         cache: 'no-store',
         headers: {
@@ -66,7 +70,12 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       }
     } catch (erro: any) {
       console.error('❌ Erro ao conectar com o backend:', erro);
-      setErroApi('Falha de conexão com o servidor backend. Verifique se o servidor Express está ativo.');
+
+      if (erro.message === 'Failed to fetch') {
+        setErroApi(`Falha de conexão com o servidor backend (${apiUrl}). Verifique sua conexão ou se o servidor está ativo.`);
+      } else {
+        setErroApi('Falha de conexão com o servidor backend. Verifique se o servidor Express está ativo.');
+      }
     } finally {
       setCarregando(false);
     }
@@ -173,7 +182,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
                   padding: '1.25rem',
                   display: 'flex',
                   flexDirection: 'column',
-                  justifyContent: 'space-between', // 👈 Propriedade CSS válida e corrigida!
+                  justifyContent: 'space-between',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 }}
               >

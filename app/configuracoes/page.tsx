@@ -42,8 +42,9 @@ export default function ConfiguracoesMotoristaPage() {
   const [carregandoBanco, setCarregandoBanco] = useState(true);
   const [mensagemStatus, setMensagemStatus] = useState('');
 
-  // URL da API backend (utiliza a variável do Vercel/Render ou localhost)
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  // URL da API backend (Puxa da variável de ambiente com fallback seguro para localhost)
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
   // 1. Efeito para buscar os dados em tempo real no MongoDB Atlas ao abrir a página
   useEffect(() => {
     const carregarDadosDoBanco = async () => {
@@ -58,8 +59,11 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
         const objSessao: MotoristaSessao = JSON.parse(dadosSalvos);
         setMotoristaLogado(objSessao);
 
+        // Formata a URL base para evitar barras duplas no endpoint
+        const baseUrl = apiUrl.replace(/\/$/, '');
+
         // Chamada à API Express na rota GET /caminhoneiros
-        const resposta = await fetch(`${apiUrl}/caminhoneiros`);
+        const resposta = await fetch(`${baseUrl}/caminhoneiros`);
         const dadosApi = await resposta.json();
 
         if (resposta.ok && dadosApi.sucesso && Array.isArray(dadosApi.dados)) {
@@ -119,7 +123,8 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     setMensagemStatus('⏳ A registar nova placa no banco de dados...');
 
     try {
-      const resposta = await fetch(`${apiUrl}/caminhoneiros/adicionar-placa`, {
+      const baseUrl = apiUrl.replace(/\/$/, '');
+      const resposta = await fetch(`${baseUrl}/caminhoneiros/adicionar-placa`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -161,7 +166,11 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
         setMensagemStatus(`❌ ${resultado.mensagem || 'Erro ao registar a placa.'}`);
       }
     } catch (erro: any) {
-      setMensagemStatus(`❌ ${erro.message || 'Erro de ligação ao servidor.'}`);
+      if (erro.message === 'Failed to fetch') {
+        setMensagemStatus(`❌ Não foi possível conectar ao servidor (${apiUrl}). Verifique sua conexão ou status da API.`);
+      } else {
+        setMensagemStatus(`❌ ${erro.message || 'Erro de ligação ao servidor.'}`);
+      }
     } finally {
       setCarregando(false);
     }
@@ -180,7 +189,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', color: '#0f172a' }}>
       
-      {/* COMPONENTE NAVBAR (Sem enviar props para evitar erro no build do TypeScript) */}
+      {/* COMPONENTE NAVBAR */}
       <Navbar />
 
       {/* CONTEÚDO DA PÁGINA */}

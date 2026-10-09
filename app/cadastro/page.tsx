@@ -1,5 +1,14 @@
 'use client';
 
+/**
+ * ============================================================================
+ * PORTAL DO CAMINHONEIRO - TELA DE CADASTRO (CORRIGIDA E CONECTADA À API)
+ * Localização: caminhoneiro/app/cadastro/page.tsx
+ * Tecnologias: Next.js (App Router), React, TypeScript, CSS-in-JS Inline
+ * Descrição: Formulário de registo de motoristas com higienização de CPF,
+ *            tratamento de erros de rede e compatibilidade entre Web e Local.
+ * ============================================================================
+ */
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -22,16 +31,12 @@ export default function CadastroCaminhoneiroPage() {
   const [carregando, setCarregando] = useState(false);
   const [mensagemStatus, setMensagemStatus] = useState('');
 
-  // LÊ ESTRITAMENTE A VARIÁVEL DE AMBIENTE DO SERVIDOR/HOSPEDAGEM
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  // ENDEREÇO DA API BACKEND (Puxa da variável de ambiente ou usa localhost como padrão)
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
   // Envio do formulário de registo para o backend
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!API_URL) {
-      setMensagemStatus('❌ Variável de ambiente NEXT_PUBLIC_API_URL não configurada no servidor.');
-      return;
-    }
 
     if (!nome || !cpf || !senha || !placasTexto) {
       setMensagemStatus('⚠️ Preencha os campos obrigatórios (Nome, CPF, Placas e Senha).');
@@ -64,7 +69,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
     try {
       // Formata a URL removendo barras no final para evitar erros de endpoint
-      const baseUrl = API_URL.replace(/\/$/, '');
+      const baseUrl = apiUrl.replace(/\/$/, '');
       const endpoint = `${baseUrl}/caminhoneiros/registro`;
 
       const resposta = await fetch(endpoint, {
@@ -92,7 +97,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
       console.error('❌ Erro no registo:', erro);
 
       if (erro.message === 'Failed to fetch') {
-        setMensagemStatus(`❌ Não foi possível conectar ao servidor (${API_URL}). Verifique sua conexão ou status do backend.`);
+        setMensagemStatus(`❌ Não foi possível conectar ao servidor (${apiUrl}). Verifique sua conexão ou status do backend.`);
       } else {
         setMensagemStatus(`❌ ${erro.message}`);
       }

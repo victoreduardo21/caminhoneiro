@@ -2,9 +2,10 @@
 
 /**
  * ============================================================================
- * TELA: MINUTAS DO CAMINHONEIRO (SUPORTE A MÚLTIPLAS PLACAS)
+ * TELA: MINUTAS DO CAMINHONEIRO (SUPORTE A MÚLTIPLAS PLACAS E API DINÂMICA)
  * Localização no Projeto: caminhoneiro/app/minutas/page.tsx
- * Rota no Navegador: http://localhost:3000/minutas
+ * Rota no Navegador: /minutas
+ * Tecnologias: Next.js (App Router), React, TypeScript
  * Descrição: Exibe as minutas do motorista permitindo alternar entre todas
  *            as placas cadastradas no seu perfil ou consultar todas juntas.
  * ============================================================================
@@ -52,19 +53,25 @@ export default function MinutasCaminhoneiroPage() {
     totalMinutas: 0,
   });
 
+  // URL base da API do Backend
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
   // 1. Função para carregar as minutas conectando ao backend MongoDB via API
   const carregarMinutasDoMotorista = useCallback(async (placaBusca: string) => {
     if (!placaBusca || placaBusca.trim() === '') {
-      setMensagemStatus('⚠️️ Nenhuma placa selecionada para consulta.');
+      setMensagemStatus('⚠️ Nenhuma placa selecionada para consulta.');
       return;
     }
 
     setCarregando(true);
     setMensagemStatus(`⏳ A consultar fretes para o veículo ${placaBusca}...`);
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     try {
-      const resposta = await fetch(`${apiUrl}/importacao/minhas-minutas?placa=${encodeURIComponent(placaBusca.trim())}`);
+      // Remove barra no final da URL para evitar caminhos duplicados
+      const baseUrl = apiUrl.replace(/\/$/, '');
+      const endpoint = `${baseUrl}/importacao/minhas-minutas?placa=${encodeURIComponent(placaBusca.trim())}`;
+
+      const resposta = await fetch(endpoint);
       const resultado = await resposta.json();
 
       if (resposta.ok && resultado.sucesso) {
@@ -88,12 +95,17 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
         setMensagemStatus(`⚠️ ${resultado.mensagem || 'Erro ao consultar a base de dados.'}`);
       }
     } catch (erro: any) {
-      console.error('Erro na conexão com a API:', erro);
-      setMensagemStatus('❌ Falha ao conectar ao servidor backend (Porta 3001).');
+      console.error('❌ Erro na conexão com a API:', erro);
+
+      if (erro.message === 'Failed to fetch') {
+        setMensagemStatus(`❌ Não foi possível conectar ao servidor (${apiUrl}). Verifique sua conexão ou status da API.`);
+      } else {
+        setMensagemStatus(`❌ ${erro.message || 'Falha ao conectar ao servidor backend.'}`);
+      }
     } finally {
       setCarregando(false);
     }
-  }, []);
+  }, [apiUrl]);
 
   // 2. Leitura inicial da sessão local (localStorage) para buscar todas as placas salvas
   useEffect(() => {
@@ -111,7 +123,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
           listaPlacasMotorista = [String(obj.placa || obj.cavalo).trim().toUpperCase()];
         }
       } catch (e) {
-        console.warn('Falha ao ler dados da sessão local.');
+        console.warn('⚠️ Falha ao ler dados da sessão local.');
       }
     }
 

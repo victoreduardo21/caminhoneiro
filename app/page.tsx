@@ -2,10 +2,11 @@
 
 /**
  * ============================================================================
- * PORTAL DO CAMINHONEIRO - TELA DE LOGIN CONECTADA À API (COM TRATAMENTO DE REDE)
+ * PORTAL DO CAMINHONEIRO - TELA DE LOGIN (CORRIGIDA E CONECTADA À API)
  * Localização: caminhoneiro/app/page.tsx
- * Tecnologias: Next.js (App Router), React, CSS-in-JS Inline
- * Descrição: Trata erros de conexão ('Failed to fetch') e limpa pontuações do CPF.
+ * Tecnologias: Next.js (App Router), React, TypeScript, CSS-in-JS Inline
+ * Descrição: Formulário de login de motoristas com sanitização de CPF,
+ *            tratamento de erros de rede e compatibilidade local/Web.
  * ============================================================================
  */
 
@@ -16,14 +17,18 @@ import Link from 'next/link';
 export default function LoginCaminhoneiroPage() {
   const router = useRouter();
 
+  // Estados dos campos de entrada e controle de interface
   const [cpf, setCpf] = useState('');
   const [senha, setSenha] = useState('');
   const [carregando, setCarregando] = useState(false);
   const [mensagemStatus, setMensagemStatus] = useState('');
 
-  // ENDEREÇO DA API BACKEND (Garante fallback seguro)
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-  // Submissão e Autenticação com o Backend Node.js Express
+  // ENDEREÇO DA API BACKEND (Puxa da variável de ambiente ou usa localhost como padrão)
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+  /**
+   * Função para processar o envio do formulário de login
+   */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -35,11 +40,15 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     setCarregando(true);
     setMensagemStatus('⏳ A autenticar no servidor...');
 
-    // Limpa pontos e traços do CPF para enviar apenas os números
+    // Limpa pontos e traços do CPF para enviar apenas dígitos numéricos
     const cpfLimpo = cpf.replace(/\D/g, '');
 
     try {
-      const resposta = await fetch(`${API_URL}/caminhoneiros/login`, {
+      // Remove barra final da URL se houver para evitar endpoints duplicados (//)
+      const baseUrl = apiUrl.replace(/\/$/, '');
+      const endpoint = `${baseUrl}/caminhoneiros/login`;
+
+      const resposta = await fetch(endpoint, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -54,24 +63,27 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
         throw new Error(resultado.mensagem || 'CPF ou senha incorretos.');
       }
 
-      // Guarda os dados da sessão garantindo compatibilidade entre todas as chaves
+      // Guarda os dados da sessão no localStorage para reutilização no app
       localStorage.setItem('token_motorista', resultado.token);
       localStorage.setItem('tokenCaminhoneiro', resultado.token);
       localStorage.setItem('token', resultado.token);
-      localStorage.setItem('motorista', JSON.stringify(resultado.motorista || resultado.dado || { nome: 'Motorista' }));
+      localStorage.setItem(
+        'motorista', 
+        JSON.stringify(resultado.motorista || resultado.dado || { nome: 'Motorista' })
+      );
 
       setMensagemStatus('🎉 Acesso permitido! A redirecionar...');
       
-      // Redireciona para o Painel Principal do Motorista
+      // Redireciona para o Painel Principal do Motorista após 800ms
       setTimeout(() => {
         router.push('/minutas');
       }, 800);
     } catch (erro: any) {
-      console.error('❌ Erro de login:', erro);
+      console.error('❌ Erro no login:', erro);
 
-      // Tratamento específico do erro 'Failed to fetch' da Web
+      // Tratamento amigável para falhas de rede/CORS na Web
       if (erro.message === 'Failed to fetch') {
-        setMensagemStatus('❌ Não foi possível conectar ao servidor backend. Verifique a URL da API ou sua conexão com a internet.');
+        setMensagemStatus(`❌ Não foi possível conectar ao servidor (${apiUrl}). Verifique sua conexão com a internet ou status do servidor.`);
       } else {
         setMensagemStatus(`❌ ${erro.message}`);
       }
@@ -84,6 +96,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     <div style={estilos.containerGeral}>
       <div style={estilos.cardElevado}>
         
+        {/* Cabeçalho do Card */}
         <div style={estilos.cabecalho}>
           <div style={estilos.badgePortal}>PORTAL DO MOTORISTA</div>
           <h1 style={estilos.tituloModal}>Aceda à sua Conta</h1>
@@ -92,6 +105,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
           </p>
         </div>
 
+        {/* Mensagem de Alerta/Status */}
         {mensagemStatus && (
           <div style={{
             ...estilos.caixaStatus,
@@ -103,6 +117,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
           </div>
         )}
 
+        {/* Formulário de Autenticação */}
         <form onSubmit={handleLogin} style={{ marginTop: '1.5rem' }}>
           <div style={{ marginBottom: '1.25rem' }}>
             <label style={estilos.label}>CPF do Motorista *</label>
@@ -133,6 +148,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
           </button>
         </form>
 
+        {/* Rodapé do Card */}
         <div style={estilos.rodapeCard}>
           <span style={{ color: '#64748b' }}>Ainda não tem cadastro? </span>
           <Link href="/cadastro" style={estilos.linkRegistro}>
@@ -145,6 +161,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   );
 }
 
+// Estilos inline do componente
 const estilos: { [key: string]: React.CSSProperties } = {
   containerGeral: {
     minHeight: '100vh',
