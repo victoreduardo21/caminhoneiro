@@ -2,11 +2,11 @@
 
 /**
  * ============================================================================
- * PORTAL DO CAMINHONEIRO - TELA DE CADASTRO TRATADA E CONECTADA À API
+ * PORTAL DO CAMINHONEIRO - TELA DE CADASTRO (URL DA API DINÂMICA VIA ENV)
  * Localização: caminhoneiro/app/cadastro/page.tsx
  * Tecnologias: Next.js (App Router), React, CSS-in-JS Inline
- * Descrição: Trata erros de rede ('Failed to fetch') e limpa o CPF antes de
- *            enviar a requisição para o backend.
+ * Descrição: Envia os dados de registro utilizando estritamente a variável de
+ *            ambiente NEXT_PUBLIC_API_URL, sem dependência fixa de localhost.
  * ============================================================================
  */
 
@@ -25,15 +25,23 @@ export default function CadastroCaminhoneiroPage() {
   const [pis, setPis] = useState('');
   const [dataNascimento, setDataNascimento] = useState('');
   const [pix, setPix] = useState('');
-  const [placasTexto, setPlacasTexto] = useState(''); // Múltiplas placas separadas por vírgula
+  const [placasTexto, setPlacasTexto] = useState('');
   const [senha, setSenha] = useState('');
 
   const [carregando, setCarregando] = useState(false);
   const [mensagemStatus, setMensagemStatus] = useState('');
 
-  // Envio do formulário de registo para o backend Express
+  // LÊ ESTRITAMENTE A VARIÁVEL DE AMBIENTE DO SERVIDOR/HOSPEDAGEM
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+  // Envio do formulário de registo para o backend
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!API_URL) {
+      setMensagemStatus('❌ Variável de ambiente NEXT_PUBLIC_API_URL não configurada no servidor.');
+      return;
+    }
 
     if (!nome || !cpf || !senha || !placasTexto) {
       setMensagemStatus('⚠️ Preencha os campos obrigatórios (Nome, CPF, Placas e Senha).');
@@ -42,8 +50,6 @@ export default function CadastroCaminhoneiroPage() {
 
     setCarregando(true);
     setMensagemStatus('⏳ A criar o seu registo no sistema...');
-
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
     // Limpa pontos e hífen do CPF para enviar apenas os dígitos
     const cpfLimpo = cpf.replace(/\D/g, '');
@@ -67,7 +73,11 @@ export default function CadastroCaminhoneiroPage() {
     };
 
     try {
-      const resposta = await fetch(`${apiUrl}/caminhoneiros/registro`, {
+      // Formata a URL removendo barras no final para evitar erros de endpoint
+      const baseUrl = API_URL.replace(/\/$/, '');
+      const endpoint = `${baseUrl}/caminhoneiros/registro`;
+
+      const resposta = await fetch(endpoint, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -91,9 +101,8 @@ export default function CadastroCaminhoneiroPage() {
     } catch (erro: any) {
       console.error('❌ Erro no registo:', erro);
 
-      // Tratamento amigável para o erro 'Failed to fetch' da Web
       if (erro.message === 'Failed to fetch') {
-        setMensagemStatus('❌ Não foi possível conectar ao servidor backend. Verifique a URL da API ou sua conexão.');
+        setMensagemStatus(`❌ Não foi possível conectar ao servidor (${API_URL}). Verifique sua conexão ou status do backend.`);
       } else {
         setMensagemStatus(`❌ ${erro.message}`);
       }
@@ -105,7 +114,7 @@ export default function CadastroCaminhoneiroPage() {
   return (
     <div style={estilos.containerGeral}>
       
-      {/* CARD PRINCIPAL ELEVADO E SOFISTICADO */}
+      {/* CARD PRINCIPAL ELEVADO */}
       <div style={estilos.cardElevado}>
         
         {/* CABEÇALHO DO CARD */}
@@ -259,7 +268,6 @@ export default function CadastroCaminhoneiroPage() {
   );
 }
 
-// ESTILOS INLINE DE DESIGN SOFISTICADO (PREMIUM UI)
 const estilos: { [key: string]: React.CSSProperties } = {
   containerGeral: {
     minHeight: '100vh',
