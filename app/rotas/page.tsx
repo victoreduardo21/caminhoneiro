@@ -2,11 +2,11 @@
 
 /**
  * ============================================================================
- * PORTAL DO CAMINHONEIRO: CONSULTA DE ROTAS E FRETES (PADRÃO PADRONIZADO)
+ * PORTAL DO CAMINHONEIRO: CONSULTA DE ROTAS E FRETES (CORREÇÃO DE FETCH)
  * Localização no VS Code: caminhoneiro/app/rotas/page.tsx
  * Tecnologias: Next.js (App Router), React, TypeScript
- * Descrição: Exibe a tabela de fretes do motorista com suporte a URL de API
- *            dinâmica e tratamento de exceções de rede.
+ * Descrição: Consulta a tabela de fretes no backend Express tratando erros de
+ *            conexão, timeouts e requisições bloqueadas pelo navegador.
  * ============================================================================
  */
 
@@ -42,39 +42,67 @@ export default function RotasCaminhoneiroPage() {
     return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
-  // Carrega as rotas da API
+  /**
+   * Função para carregar as rotas da API com tratamento de erros resiliente
+   */
   const carregarRotas = useCallback(async (termo: string = '') => {
     setCarregando(true);
     setErroApi('');
 
-    try {
-      // Remove barra no final da URL da API para evitar caminhos duplicados
-      const baseUrl = apiUrl.replace(/\/$/, '');
-      const url = `${baseUrl}/rotas-valores?busca=${encodeURIComponent(termo)}`;
+    // Cria um controlador para cancelar a requisição caso demore mais de 10 segundos
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
 
+    try {
+      // 1. Formata a URL base removendo barras duplicadas no final
+      const baseUrl = apiUrl.replace(/\/$/, '');
+      const url = `${baseUrl}/rotas-valores?busca=${encodeURIComponent(termo.trim())}`;
+
+      // 2. Executa a requisição de rede segura
       const res = await fetch(url, {
-        cache: 'no-store',
+        method: 'GET',
         headers: {
-          'Pragma': 'no-cache',
-          'Cache-Control': 'no-cache'
-        }
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
       });
 
-      const data = await res.json();
+      clearTimeout(timeoutId);
 
-      if (res.ok) {
-        const listaRotas = data.dados || data.rotas || (Array.isArray(data) ? data : []);
+      // 3. Lê o texto da resposta
+      const textoResposta = await res.text();
+
+      // Se o servidor responder com HTML (ex: página de erro 404/500 da hospedagem)
+      if (textoResposta.trim().startsWith('<')) {
+        throw new Error('O servidor backend devolveu uma página HTML. Verifique se o servidor Express está ativo e a rota /rotas-valores existe.');
+      }
+
+      const data = JSON.parse(textoResposta);
+
+      if (res.ok && (data.sucesso || Array.isArray(data.dados) || Array.isArray(data.rotas))) {
+        const listaRotas = Array.isArray(data.dados) 
+          ? data.dados 
+          : Array.isArray(data.rotas) 
+          ? data.rotas 
+          : Array.isArray(data) 
+          ? data 
+          : [];
+
         setRotas(listaRotas);
       } else {
         setErroApi(data.mensagem || 'Não foi possível carregar a tabela de fretes.');
       }
     } catch (erro: any) {
-      console.error('❌ Erro ao conectar com o backend:', erro);
+      clearTimeout(timeoutId);
+      console.error('❌ Erro na consulta de rotas:', erro);
 
-      if (erro.message === 'Failed to fetch') {
-        setErroApi(`Falha de conexão com o servidor backend (${apiUrl}). Verifique sua conexão ou se o servidor está ativo.`);
+      if (erro.name === 'AbortError') {
+        setErroApi('⏱️ O servidor demorou muito para responder. Verifique sua conexão com a internet.');
+      } else if (erro.message === 'Failed to fetch') {
+        setErroApi(`❌ Não foi possível conectar ao servidor (${apiUrl}). Verifique se o servidor backend está ligado na porta 3001.`);
       } else {
-        setErroApi('Falha de conexão com o servidor backend. Verifique se o servidor Express está ativo.');
+        setErroApi(`⚠️ ${erro.message || 'Erro ao conectar com o servidor backend.'}`);
       }
     } finally {
       setCarregando(false);
@@ -133,8 +161,8 @@ export default function RotasCaminhoneiroPage() {
 
         {/* ALERTA DE ERRO DE CONEXÃO */}
         {erroApi && (
-          <div style={{ padding: '0.85rem 1rem', borderRadius: '8px', backgroundColor: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-            ⚠️ {erroApi}
+          <div style={{ padding: '0.85rem 1rem', borderRadius: '8px', backgroundColor: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', marginBottom: '1.5rem', fontSize: '0.9rem', fontWeight: '600' }}>
+            {erroApi}
           </div>
         )}
 
