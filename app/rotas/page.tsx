@@ -35,8 +35,7 @@ export default function RotasCaminhoneiroPage() {
   const [erroApi, setErroApi] = useState('');
 
   // Endpoint do Servidor Express
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   // Formatação de valores em Reais (R$)
   const formatarMoeda = (valor: number) => {
     return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

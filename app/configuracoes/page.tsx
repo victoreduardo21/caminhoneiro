@@ -43,8 +43,7 @@ export default function ConfiguracoesMotoristaPage() {
   const [mensagemStatus, setMensagemStatus] = useState('');
 
   // URL da API backend (utiliza a variável do Vercel/Render ou localhost)
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   // 1. Efeito para buscar os dados em tempo real no MongoDB Atlas ao abrir a página
   useEffect(() => {
     const carregarDadosDoBanco = async () => {

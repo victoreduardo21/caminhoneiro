@@ -1,14 +1,5 @@
 'use client';
 
-/**
- * ============================================================================
- * PORTAL DO CAMINHONEIRO - TELA DE CADASTRO (URL DA API DINÂMICA VIA ENV)
- * Localização: caminhoneiro/app/cadastro/page.tsx
- * Tecnologias: Next.js (App Router), React, CSS-in-JS Inline
- * Descrição: Envia os dados de registro utilizando estritamente a variável de
- *            ambiente NEXT_PUBLIC_API_URL, sem dependência fixa de localhost.
- * ============================================================================
- */
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -32,8 +23,7 @@ export default function CadastroCaminhoneiroPage() {
   const [mensagemStatus, setMensagemStatus] = useState('');
 
   // LÊ ESTRITAMENTE A VARIÁVEL DE AMBIENTE DO SERVIDOR/HOSPEDAGEM
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
-
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   // Envio do formulário de registo para o backend
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

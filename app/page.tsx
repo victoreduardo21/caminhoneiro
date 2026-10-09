@@ -22,8 +22,7 @@ export default function LoginCaminhoneiroPage() {
   const [mensagemStatus, setMensagemStatus] = useState('');
 
   // ENDEREÇO DA API BACKEND (Garante fallback seguro)
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
   // Submissão e Autenticação com o Backend Node.js Express
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -62,8 +62,7 @@ export default function MinutasCaminhoneiroPage() {
     setCarregando(true);
     setMensagemStatus(`⏳ A consultar fretes para o veículo ${placaBusca}...`);
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     try {
       const resposta = await fetch(`${apiUrl}/importacao/minhas-minutas?placa=${encodeURIComponent(placaBusca.trim())}`);
       const resultado = await resposta.json();
