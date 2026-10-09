@@ -2,9 +2,11 @@
 
 /**
  * ============================================================================
- * PORTAL DO CAMINHONEIRO - TELA DE CADASTRO COM PLACEHOLDERS GENÉRICOS
+ * PORTAL DO CAMINHONEIRO - TELA DE CADASTRO TRATADA E CONECTADA À API
  * Localização: caminhoneiro/app/cadastro/page.tsx
  * Tecnologias: Next.js (App Router), React, CSS-in-JS Inline
+ * Descrição: Trata erros de rede ('Failed to fetch') e limpa o CPF antes de
+ *            enviar a requisição para o backend.
  * ============================================================================
  */
 
@@ -15,7 +17,7 @@ import Link from 'next/link';
 export default function CadastroCaminhoneiroPage() {
   const router = useRouter();
 
-  // Estados dos campos de cadastro (sem dados pessoais pré-definidos)
+  // Estados dos campos de cadastro
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
@@ -29,7 +31,7 @@ export default function CadastroCaminhoneiroPage() {
   const [carregando, setCarregando] = useState(false);
   const [mensagemStatus, setMensagemStatus] = useState('');
 
-  // Envio do formulário de registo para o backend Express (porta 3001)
+  // Envio do formulário de registo para o backend Express
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -43,6 +45,9 @@ export default function CadastroCaminhoneiroPage() {
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+    // Limpa pontos e hífen do CPF para enviar apenas os dígitos
+    const cpfLimpo = cpf.replace(/\D/g, '');
+
     // Converte a string de placas separadas por vírgula num array de maiúsculas
     const listaPlacas = placasTexto
       .split(',')
@@ -50,13 +55,13 @@ export default function CadastroCaminhoneiroPage() {
       .filter((p) => p !== '');
 
     const payload = {
-      nome,
-      cpf,
+      nome: nome.trim(),
+      cpf: cpfLimpo,
       whatsapp: whatsapp || contato,
       contato: contato || whatsapp,
-      pis,
-      dataNascimento,
-      pix,
+      pis: pis.trim(),
+      dataNascimento: dataNascimento.trim(),
+      pix: pix.trim(),
       placas: listaPlacas,
       senha,
     };
@@ -64,7 +69,10 @@ export default function CadastroCaminhoneiroPage() {
     try {
       const resposta = await fetch(`${apiUrl}/caminhoneiros/registro`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(payload),
       });
 
@@ -81,8 +89,14 @@ export default function CadastroCaminhoneiroPage() {
         router.push('/');
       }, 1500);
     } catch (erro: any) {
-      console.error('Erro no registo:', erro);
-      setMensagemStatus(`❌ ${erro.message}`);
+      console.error('❌ Erro no registo:', erro);
+
+      // Tratamento amigável para o erro 'Failed to fetch' da Web
+      if (erro.message === 'Failed to fetch') {
+        setMensagemStatus('❌ Não foi possível conectar ao servidor backend. Verifique a URL da API ou sua conexão.');
+      } else {
+        setMensagemStatus(`❌ ${erro.message}`);
+      }
     } finally {
       setCarregando(false);
     }
@@ -115,7 +129,7 @@ export default function CadastroCaminhoneiroPage() {
           </div>
         )}
 
-        {/* FORMULÁRIO DE CADASTRO COM PLACEHOLDERS GENÉRICOS */}
+        {/* FORMULÁRIO DE CADASTRO */}
         <form onSubmit={handleSubmit} style={{ marginTop: '1.5rem' }}>
           
           <div style={estilos.gridForm}>
@@ -250,7 +264,7 @@ const estilos: { [key: string]: React.CSSProperties } = {
   containerGeral: {
     minHeight: '100vh',
     width: '100vw',
-    backgroundColor: '#020617', // Fundo Slate ultra escuro
+    backgroundColor: '#020617',
     backgroundImage: 'radial-gradient(circle at 50% 0%, #1e1b4b 0%, #020617 70%)',
     display: 'flex',
     alignItems: 'center',

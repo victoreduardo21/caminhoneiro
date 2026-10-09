@@ -2,9 +2,10 @@
 
 /**
  * ============================================================================
- * PORTAL DO CAMINHONEIRO - TELA DE LOGIN CONECTADA À API (PORTA 3002)
+ * PORTAL DO CAMINHONEIRO - TELA DE LOGIN CONECTADA À API (COM TRATAMENTO DE REDE)
  * Localização: caminhoneiro/app/page.tsx
  * Tecnologias: Next.js (App Router), React, CSS-in-JS Inline
+ * Descrição: Trata erros de conexão ('Failed to fetch') e limpa pontuações do CPF.
  * ============================================================================
  */
 
@@ -20,7 +21,7 @@ export default function LoginCaminhoneiroPage() {
   const [carregando, setCarregando] = useState(false);
   const [mensagemStatus, setMensagemStatus] = useState('');
 
-  // ENDEREÇO DA API BACKEND NA PORTA 3001
+  // ENDEREÇO DA API BACKEND (Garante fallback seguro)
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   // Submissão e Autenticação com o Backend Node.js Express
@@ -35,11 +36,17 @@ export default function LoginCaminhoneiroPage() {
     setCarregando(true);
     setMensagemStatus('⏳ A autenticar no servidor...');
 
+    // Limpa pontos e traços do CPF para enviar apenas os números
+    const cpfLimpo = cpf.replace(/\D/g, '');
+
     try {
       const resposta = await fetch(`${API_URL}/caminhoneiros/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cpf, senha }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ cpf: cpfLimpo, senha }),
       });
 
       const resultado = await resposta.json();
@@ -48,19 +55,27 @@ export default function LoginCaminhoneiroPage() {
         throw new Error(resultado.mensagem || 'CPF ou senha incorretos.');
       }
 
-      // Guarda os dados da sessão no navegador
+      // Guarda os dados da sessão garantindo compatibilidade entre todas as chaves
+      localStorage.setItem('token_motorista', resultado.token);
       localStorage.setItem('tokenCaminhoneiro', resultado.token);
-      localStorage.setItem('motorista', JSON.stringify(resultado.motorista));
+      localStorage.setItem('token', resultado.token);
+      localStorage.setItem('motorista', JSON.stringify(resultado.motorista || resultado.dado || { nome: 'Motorista' }));
 
       setMensagemStatus('🎉 Acesso permitido! A redirecionar...');
       
       // Redireciona para o Painel Principal do Motorista
       setTimeout(() => {
         router.push('/minutas');
-      }, 1000);
+      }, 800);
     } catch (erro: any) {
       console.error('❌ Erro de login:', erro);
-      setMensagemStatus(`❌ ${erro.message}`);
+
+      // Tratamento específico do erro 'Failed to fetch' da Web
+      if (erro.message === 'Failed to fetch') {
+        setMensagemStatus('❌ Não foi possível conectar ao servidor backend. Verifique a URL da API ou sua conexão com a internet.');
+      } else {
+        setMensagemStatus(`❌ ${erro.message}`);
+      }
     } finally {
       setCarregando(false);
     }
