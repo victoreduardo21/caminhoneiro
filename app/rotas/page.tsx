@@ -2,17 +2,17 @@
 
 /**
  * ============================================================================
- * PORTAL DO CAMINHONEIRO: PÁGINA DE CONSULTA DE ROTAS E FRETES (COM NAVBAR)
+ * PORTAL DO CAMINHONEIRO: CONSULTA DE ROTAS E FRETES (DADOS EM TEMPO REAL)
  * Localização no VS Code: caminhoneiro/app/rotas/page.tsx
  * Tecnologias: Next.js (App Router), React, TypeScript
- * Descrição: Inclui a barra de navegação lateral (Sidebar/Navbar) e exibe a
- *            tabela de fretes cadastrada para o motorista.
+ * Descrição: Desativa o cache do Next.js (cache: 'no-store') para garantir que
+ *            o motorista veja sempre os valores de frete mais recentes.
  * ============================================================================
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-// Importa o componente da Barra de Navegação do projeto caminhoneiro
+// Importa a barra de navegação lateral do portal do caminhoneiro
 import Sidebar from '../components/Navbar'; 
 
 interface RotaItem {
@@ -28,25 +28,32 @@ interface RotaItem {
 export default function RotasCaminhoneiroPage() {
   const router = useRouter();
   
+  // Controle de montagem no lado do cliente (Client-Side)
   const [isMounted, setIsMounted] = useState(false);
   const [motorista, setMotorista] = useState<any>(null);
   const [rotas, setRotas] = useState<RotaItem[]>([]);
   const [termoBusca, setTermoBusca] = useState('');
   const [carregando, setCarregando] = useState(true);
 
-  // Endpoint da API Express
+  // Endpoint do Servidor Express
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-  // Formatação em Moeda BRL (R$)
+  // Formatação de valores em Reais (R$)
   const formatarMoeda = (valor: number) => {
     return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
-  // Carrega as rotas da API
+  // Carrega as rotas forçando a desativação de cache (dados sempre atualizados)
   const carregarRotas = useCallback(async () => {
     setCarregando(true);
     try {
-      const res = await fetch(`${apiUrl}/rotas-valores?busca=${encodeURIComponent(termoBusca)}`);
+      const res = await fetch(`${apiUrl}/rotas-valores?busca=${encodeURIComponent(termoBusca)}`, {
+        cache: 'no-store', // 👈 Impede o Next.js de guardar dados antigos em cache
+        headers: {
+          'Pragma': 'no-cache',
+          'Cache-Control': 'no-cache'
+        }
+      });
       const data = await res.json();
 
       if (res.ok && data.dados) {
@@ -61,12 +68,12 @@ export default function RotasCaminhoneiroPage() {
     }
   }, [apiUrl, termoBusca]);
 
-  // Garante a montagem no navegador no Next.js
+  // Passo 1: Sinaliza a montagem do componente no navegador
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Validação de Sessão Flexível
+  // Passo 2: Valida a sessão no localStorage após a montagem
   useEffect(() => {
     if (!isMounted) return;
 
@@ -85,11 +92,12 @@ export default function RotasCaminhoneiroPage() {
       }
       carregarRotas();
     } else {
-      console.warn('⚠️ Nenhuma sessão encontrada. Redirecionando...');
+      console.warn('⚠️ Nenhuma sessão encontrada. Redirecionando para o login...');
       router.push('/');
     }
   }, [isMounted, router, carregarRotas]);
 
+  // Tela de carregamento até a verificação do cliente ser concluída
   if (!isMounted || !motorista) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
@@ -113,7 +121,7 @@ export default function RotasCaminhoneiroPage() {
             🚚 Tabela de Fretes
           </h1>
           <p style={{ color: '#64748b', margin: '0.25rem 0 0 0', fontSize: '0.9rem' }}>
-            Bem-vindo, <strong>{motorista.nome || 'Motorista'}</strong>! Consulte os valores pagos por cada rota.
+            Bem-vindo, <strong>{motorista.nome || 'Motorista'}</strong>! Consulte os valores pagos por cada rota em tempo real.
           </p>
         </header>
 
