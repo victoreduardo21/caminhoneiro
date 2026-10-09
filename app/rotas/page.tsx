@@ -2,17 +2,16 @@
 
 /**
  * ============================================================================
- * PORTAL DO CAMINHONEIRO: CONSULTA DE ROTAS E FRETES (DADOS EM TEMPO REAL)
+ * PORTAL DO CAMINHONEIRO: CONSULTA DE ROTAS E FRETES (CORREÇÃO TYPESCRIPT)
  * Localização no VS Code: caminhoneiro/app/rotas/page.tsx
  * Tecnologias: Next.js (App Router), React, TypeScript
- * Descrição: Desativa o cache do Next.js (cache: 'no-store') para garantir que
- *            o motorista veja sempre os valores de frete mais recentes.
+ * Descrição: Corrige a propriedade de estilo CSS para passar na validação do 
+ *            TypeScript durante o comando 'next build' na Vercel.
  * ============================================================================
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-// Importa a barra de navegação lateral do portal do caminhoneiro
 import Sidebar from '../components/Navbar'; 
 
 interface RotaItem {
@@ -28,12 +27,12 @@ interface RotaItem {
 export default function RotasCaminhoneiroPage() {
   const router = useRouter();
   
-  // Controle de montagem no lado do cliente (Client-Side)
   const [isMounted, setIsMounted] = useState(false);
   const [motorista, setMotorista] = useState<any>(null);
   const [rotas, setRotas] = useState<RotaItem[]>([]);
   const [termoBusca, setTermoBusca] = useState('');
-  const [carregando, setCarregando] = useState(true);
+  const [carregando, setCarregando] = useState(false);
+  const [erroApi, setErroApi] = useState('');
 
   // Endpoint do Servidor Express
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -43,32 +42,38 @@ export default function RotasCaminhoneiroPage() {
     return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
-  // Carrega as rotas forçando a desativação de cache (dados sempre atualizados)
-  const carregarRotas = useCallback(async () => {
+  // Carrega as rotas da API
+  const carregarRotas = useCallback(async (termo: string = '') => {
     setCarregando(true);
+    setErroApi('');
+
     try {
-      const res = await fetch(`${apiUrl}/rotas-valores?busca=${encodeURIComponent(termoBusca)}`, {
-        cache: 'no-store', // 👈 Impede o Next.js de guardar dados antigos em cache
+      const url = `${apiUrl}/rotas-valores?busca=${encodeURIComponent(termo)}`;
+      const res = await fetch(url, {
+        cache: 'no-store',
         headers: {
           'Pragma': 'no-cache',
           'Cache-Control': 'no-cache'
         }
       });
+
       const data = await res.json();
 
-      if (res.ok && data.dados) {
-        setRotas(data.dados);
+      if (res.ok) {
+        const listaRotas = data.dados || data.rotas || (Array.isArray(data) ? data : []);
+        setRotas(listaRotas);
       } else {
-        setRotas([]);
+        setErroApi(data.mensagem || 'Não foi possível carregar a tabela de fretes.');
       }
-    } catch (erro) {
-      console.error('❌ Erro ao carregar rotas no portal do caminhoneiro:', erro);
+    } catch (erro: any) {
+      console.error('❌ Erro ao conectar com o backend:', erro);
+      setErroApi('Falha de conexão com o servidor backend. Verifique se o servidor Express está ativo.');
     } finally {
       setCarregando(false);
     }
-  }, [apiUrl, termoBusca]);
+  }, [apiUrl]);
 
-  // Passo 1: Sinaliza a montagem do componente no navegador
+  // Passo 1: Marca a montagem do componente no navegador
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -90,53 +95,53 @@ export default function RotasCaminhoneiroPage() {
       } catch (e) {
         setMotorista({ nome: 'Motorista' });
       }
-      carregarRotas();
+      carregarRotas('');
     } else {
       console.warn('⚠️ Nenhuma sessão encontrada. Redirecionando para o login...');
       router.push('/');
     }
   }, [isMounted, router, carregarRotas]);
 
-  // Tela de carregamento até a verificação do cliente ser concluída
-  if (!isMounted || !motorista) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' }}>
-        <p style={{ color: '#64748b', fontWeight: '600' }}>⏳ A carregar tabela de fretes...</p>
-      </div>
-    );
-  }
+  if (!isMounted) return null;
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex' }}>
       
       {/* BARRA DE NAVEGAÇÃO LATERAL */}
-      <Sidebar usuario={motorista} />
+      <Sidebar usuario={motorista || { nome: 'Motorista' }} />
 
-      {/* CONTEÚDO PRINCIPAL (Alinhado à direita da Sidebar) */}
+      {/* CONTEÚDO PRINCIPAL */}
       <main style={{ marginLeft: '260px', flex: 1, padding: '2rem 3rem' }}>
         
         {/* CABEÇALHO */}
         <header style={{ marginBottom: '1.5rem' }}>
           <h1 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
-            🚚 Tabela de Fretes
+            🗺️ Rotas e Valores
           </h1>
           <p style={{ color: '#64748b', margin: '0.25rem 0 0 0', fontSize: '0.9rem' }}>
-            Bem-vindo, <strong>{motorista.nome || 'Motorista'}</strong>! Consulte os valores pagos por cada rota em tempo real.
+            Consulte as rotas disponíveis e os valores de frete da tabela.
           </p>
         </header>
 
-        {/* BARRA DE PESQUISA DE ROTAS */}
+        {/* ALERTA DE ERRO DE CONEXÃO */}
+        {erroApi && (
+          <div style={{ padding: '0.85rem 1rem', borderRadius: '8px', backgroundColor: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+            ⚠️ {erroApi}
+          </div>
+        )}
+
+        {/* BARRA DE PESQUISA */}
         <section style={{ backgroundColor: '#ffffff', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1.5rem', display: 'flex', gap: '0.75rem' }}>
           <input
             type="text"
             placeholder="🔍 Pesquisar por Origem, Destino ou Cliente (ex: Cubatão, Santos, Brado)..."
             value={termoBusca}
             onChange={(e) => setTermoBusca(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && carregarRotas()}
+            onKeyDown={(e) => e.key === 'Enter' && carregarRotas(termoBusca)}
             style={{ flex: 1, padding: '0.7rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', color: '#0f172a', outline: 'none' }}
           />
           <button
-            onClick={carregarRotas}
+            onClick={() => carregarRotas(termoBusca)}
             disabled={carregando}
             style={{ backgroundColor: '#2563eb', color: '#ffffff', padding: '0.7rem 1.5rem', borderRadius: '8px', border: 'none', fontWeight: '700', cursor: 'pointer' }}
           >
@@ -146,17 +151,22 @@ export default function RotasCaminhoneiroPage() {
 
         {/* LISTA / CARDS DE FRETES */}
         <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.25rem' }}>
-          {rotas.length === 0 ? (
+          {carregando ? (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b' }}>
+              <span style={{ fontSize: '2rem' }}>⏳</span>
+              <p style={{ marginTop: '0.5rem', fontSize: '1rem', fontWeight: '600' }}>A consultar tabela de fretes no servidor...</p>
+            </div>
+          ) : rotas.length === 0 ? (
             <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b' }}>
               <span style={{ fontSize: '2.5rem' }}>🚛</span>
               <p style={{ marginTop: '0.5rem', fontSize: '1rem' }}>
-                {carregando ? 'A carregar rotas...' : 'Nenhuma rota encontrada para esta pesquisa.'}
+                Nenhuma rota encontrada para a pesquisa efetuada.
               </p>
             </div>
           ) : (
-            rotas.map((item) => (
+            rotas.map((item, index) => (
               <div
-                key={item._id}
+                key={item._id || index}
                 style={{
                   backgroundColor: '#ffffff',
                   borderRadius: '12px',
@@ -164,14 +174,14 @@ export default function RotasCaminhoneiroPage() {
                   padding: '1.25rem',
                   display: 'flex',
                   flexDirection: 'column',
-                  justify: 'space-between',
+                  justifyContent: 'space-between', // 👈 Propriedade CSS válida e corrigida!
                   boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
                 }}
               >
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                     <span style={{ backgroundColor: '#eff6ff', color: '#2563eb', padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
-                      {item.cliente}
+                      {item.cliente || 'FRETE'}
                     </span>
                     {item.tipoFatura && (
                       <span style={{ backgroundColor: '#f1f5f9', color: '#475569', padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '600' }}>
