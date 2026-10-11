@@ -2,11 +2,11 @@
 
 /**
  * ============================================================================
- * TELA: CONFIGURAÇÕES E FROTA DO MOTORISTA (MOBILE-FIRST E RESPONSIVA)
+ * TELA: CONFIGURAÇÕES E FROTA DO MOTORISTA (CORRIGIDA PARA DESKTOP E MOBILE)
  * Localização no VS Code: caminhoneiro/app/configuracoes/page.tsx
  * Tecnologias: Next.js (React / TypeScript), API Express, MongoDB Atlas
  * Descrição: Carrega os dados reais e as placas registradas na coleção
- *            'caminhoneiros' consumindo os endpoints do servidor Express.
+ *            'caminhoneiros' com alinhamento perfeito ao lado da Sidebar.
  * ============================================================================
  */
 
@@ -187,13 +187,41 @@ export default function ConfiguracoesMotoristaPage() {
   if (!motoristaLogado) return null;
 
   return (
-    <div style={{ minHeight: '100dvh', backgroundColor: '#f8fafc', color: '#0f172a' }}>
+    <div style={{ minHeight: '100dvh', backgroundColor: '#f8fafc', color: '#0f172a', overflowX: 'hidden' }}>
       
+      {/* REGRAS DE LAYOUT EXACTAS PARA COMPUTADOR E CELULAR */}
+      <style jsx global>{`
+        .area-conteudo-config {
+          padding: 1.25rem 1.5rem;
+          box-sizing: border-box;
+          transition: margin-left 0.2s ease, width 0.2s ease;
+        }
+
+        /* COMPUTADOR (Ecrãs maiores que 768px) */
+        @media (min-width: 769px) {
+          .area-conteudo-config {
+            margin-left: 260px !important;
+            width: calc(100% - 260px) !important;
+            max-width: calc(100% - 260px) !important;
+          }
+        }
+
+        /* CELULAR / TELEMÓVEL (Ecrãs até 768px) */
+        @media (max-width: 768px) {
+          .area-conteudo-config {
+            margin-left: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 1rem !important;
+          }
+        }
+      `}</style>
+
       {/* COMPONENTE NAVBAR RESPONSIVO */}
       <Navbar />
 
-      {/* CONTEÚDO DA PÁGINA */}
-      <main style={estilos.mainContainer}>
+      {/* CONTEÚDO DA PÁGINA RESTRITO AO ESPAÇO ÚTIL */}
+      <main className="area-conteudo-config">
         
         <header style={estilos.headerFlex}>
           <div>
@@ -328,7 +356,7 @@ export default function ConfiguracoesMotoristaPage() {
   );
 }
 
-// Estilos Responsivos Otimizados para Celular
+// Estilos Responsivos Otimizados
 const estilos: { [key: string]: React.CSSProperties } = {
   carregandoContainer: {
     display: 'flex',
@@ -338,11 +366,6 @@ const estilos: { [key: string]: React.CSSProperties } = {
     backgroundColor: '#f8fafc',
     color: '#0f172a',
     fontWeight: 'bold',
-  },
-  mainContainer: {
-    padding: '1.25rem 1rem',
-    boxSizing: 'border-box',
-    width: '100%',
   },
   headerFlex: {
     marginBottom: '1.25rem',
@@ -384,8 +407,6 @@ const estilos: { [key: string]: React.CSSProperties } = {
     fontWeight: '800',
     fontSize: '0.9rem',
     cursor: 'pointer',
-    width: '100%',
-    maxWidth: '240px',
   },
   cardBoxSecao: {
     backgroundColor: '#ffffff',

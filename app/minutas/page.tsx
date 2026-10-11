@@ -2,12 +2,12 @@
 
 /**
  * ============================================================================
- * TELA: MINUTAS DO CAMINHONEIRO (MOBILE-FIRST E RESPONSIVA)
+ * TELA: MINUTAS DO CAMINHONEIRO (RESPONSIVIDADE E LARGURA CORRIGIDAS)
  * Localização no Projeto: caminhoneiro/app/minutas/page.tsx
  * Rota no Navegador: /minutas
  * Tecnologias: Next.js (App Router), React, TypeScript
- * Descrição: Exibe as minutas do motorista permitindo alternar entre todas
- *            as placas cadastradas, 100% adaptado para celulares.
+ * Descrição: Corrige o estouro de largura e alinha o conteúdo perfeitamente
+ *            ao lado da Sidebar no computador e tela cheia no celular.
  * ============================================================================
  */
 
@@ -162,14 +162,43 @@ export default function MinutasCaminhoneiroPage() {
   });
 
   return (
-    <div style={{ minHeight: '100dvh', backgroundColor: '#f8fafc', color: '#0f172a' }}>
+    <div style={{ minHeight: '100dvh', backgroundColor: '#f8fafc', color: '#0f172a', overflowX: 'hidden' }}>
       
-      {/* Componente Navbar Híbrido */}
+      {/* REGRAS DE LAYOUT EXACTAS PARA COMPUTADOR E CELULAR */}
+      <style jsx global>{`
+        .area-conteudo-pagina {
+          padding: 1.25rem;
+          box-sizing: border-box;
+          transition: margin-left 0.2s ease, width 0.2s ease;
+        }
+
+        /* COMPUTADOR (Ecrãs maiores que 768px) */
+        @media (min-width: 769px) {
+          .area-conteudo-pagina {
+            margin-left: 260px !important;
+            width: calc(100% - 260px) !important;
+            max-width: calc(100% - 260px) !important;
+          }
+        }
+
+        /* CELULAR / TELEMÓVEL (Ecrãs até 768px) */
+        @media (max-width: 768px) {
+          .area-conteudo-pagina {
+            margin-left: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 1rem !important;
+          }
+        }
+      `}</style>
+
+      {/* Componente Navbar / Sidebar */}
       <Navbar />
 
-      <main style={estilos.mainContainer}>
+      {/* ÁREA DE CONTEÚDO PRINCIPAL RESTRITA AO ESPAÇO ÚTIL DA TELA */}
+      <main className="area-conteudo-pagina">
         
-        {/* CABEÇALHO COM SELETOR DE PLACAS RESPONSIVO */}
+        {/* CABEÇALHO */}
         <header style={estilos.headerFlex}>
           <div>
             <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
@@ -180,7 +209,7 @@ export default function MinutasCaminhoneiroPage() {
             </p>
           </div>
 
-          {/* SELETOR DE PLACAS COM ÁREA DE TOQUE AMPLIADA */}
+          {/* SELETOR DE PLACAS */}
           <div style={estilos.caixaSeletor}>
             <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#475569' }}>Veículo:</span>
             
@@ -233,7 +262,7 @@ export default function MinutasCaminhoneiroPage() {
           </div>
         )}
 
-        {/* CARDS DE RESUMO FINANCEIRO (KPIs) */}
+        {/* CARDS DE RESUMO FINANCEIRO */}
         <section style={estilos.gridTotais}>
           <div style={estilos.cardKpi}>
             <span style={estilos.tituloKpi}>TOTAL LÍQUIDO A RECEBER</span>
@@ -284,7 +313,7 @@ export default function MinutasCaminhoneiroPage() {
           </button>
         </div>
 
-        {/* TABELA DE MINUTAS COM ROLAGEM HORIZONTAL SUAVE NO TELEMÓVEL */}
+        {/* TABELA DE MINUTAS */}
         <section style={estilos.cardBoxTabela}>
           <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <table style={estilos.tabela}>
@@ -361,13 +390,8 @@ export default function MinutasCaminhoneiroPage() {
   );
 }
 
-// Estilos Responsivos Otimizados para Celular
+// Estilos Responsivos
 const estilos: { [key: string]: React.CSSProperties } = {
-  mainContainer: {
-    padding: '1.25rem 1rem',
-    boxSizing: 'border-box',
-    width: '100%',
-  },
   headerFlex: {
     marginBottom: '1.25rem',
     display: 'flex',

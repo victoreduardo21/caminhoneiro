@@ -2,11 +2,11 @@
 
 /**
  * ============================================================================
- * PORTAL DO CAMINHONEIRO: CONSULTA DE ROTAS E FRETES (MOBILE-FIRST E RESPONSIVO)
+ * PORTAL DO CAMINHONEIRO: CONSULTA DE ROTAS E FRETES (CORRIGIDO PARA DESKTOP/MOBILE)
  * Localização no VS Code: caminhoneiro/app/rotas/page.tsx
  * Tecnologias: Next.js (App Router), React, TypeScript
- * Descrição: Exibe a tabela de fretes do motorista consultando a API backend.
- *            Possui layout totalmente adaptado para telemóveis e computadores.
+ * Descrição: Exibe a tabela de fretes do motorista consultando a API backend
+ *            com alinhamento perfeito ao lado da Sidebar no computador.
  * ============================================================================
  */
 
@@ -136,13 +136,41 @@ export default function RotasCaminhoneiroPage() {
   if (!isMounted) return null;
 
   return (
-    <div style={{ minHeight: '100dvh', backgroundColor: '#f8fafc', color: '#0f172a' }}>
+    <div style={{ minHeight: '100dvh', backgroundColor: '#f8fafc', color: '#0f172a', overflowX: 'hidden' }}>
       
+      {/* REGRAS DE LAYOUT EXATAS PARA COMPUTADOR E TELEMÓVEL */}
+      <style jsx global>{`
+        .area-conteudo-rotas {
+          padding: 1.25rem 1.5rem;
+          box-sizing: border-box;
+          transition: margin-left 0.2s ease, width 0.2s ease;
+        }
+
+        /* COMPUTADOR (Ecrãs maiores que 768px) */
+        @media (min-width: 769px) {
+          .area-conteudo-rotas {
+            margin-left: 260px !important;
+            width: calc(100% - 260px) !important;
+            max-width: calc(100% - 260px) !important;
+          }
+        }
+
+        /* TELEMÓVEL / CELULAR (Ecrãs até 768px) */
+        @media (max-width: 768px) {
+          .area-conteudo-rotas {
+            margin-left: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 1rem !important;
+          }
+        }
+      `}</style>
+
       {/* BARRA DE NAVEGAÇÃO LATERAL/TOPO RESPONSIVA */}
       <Sidebar usuario={motorista || { nome: 'Motorista' }} />
 
-      {/* CONTEÚDO PRINCIPAL */}
-      <main style={estilos.mainContainer}>
+      {/* CONTEÚDO PRINCIPAL RESTRITO AO ESPAÇO ÚTIL */}
+      <main className="area-conteudo-rotas">
         
         {/* CABEÇALHO */}
         <header style={{ marginBottom: '1.25rem' }}>
@@ -257,11 +285,6 @@ export default function RotasCaminhoneiroPage() {
 
 // Estilos Responsivos
 const estilos: { [key: string]: React.CSSProperties } = {
-  mainContainer: {
-    padding: '1.25rem 1rem',
-    boxSizing: 'border-box',
-    width: '100%',
-  },
   caixaPesquisa: {
     backgroundColor: '#ffffff',
     padding: '0.85rem',
