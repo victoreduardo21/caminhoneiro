@@ -2,11 +2,11 @@
 
 /**
  * ============================================================================
- * PORTAL DO CAMINHONEIRO - TELA DE CADASTRO (CORRIGIDA E CONECTADA À API)
+ * PORTAL DO CAMINHONEIRO - TELA DE CADASTRO MOBILE-FIRST
  * Localização: caminhoneiro/app/cadastro/page.tsx
  * Tecnologias: Next.js (App Router), React, TypeScript, CSS-in-JS Inline
- * Descrição: Formulário de registo de motoristas com higienização de CPF,
- *            tratamento de erros de rede e compatibilidade entre Web e Local.
+ * Descrição: Formulário de registo totalmente otimizado para telemóveis com
+ *            teclados numéricos direcionados e layout responsivo.
  * ============================================================================
  */
 
@@ -31,7 +31,7 @@ export default function CadastroCaminhoneiroPage() {
   const [carregando, setCarregando] = useState(false);
   const [mensagemStatus, setMensagemStatus] = useState('');
 
-  // ENDEREÇO DA API BACKEND (Puxa da variável de ambiente ou usa localhost como padrão)
+  // ENDEREÇO DA API BACKEND
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   // Envio do formulário de registo para o backend
@@ -109,7 +109,7 @@ export default function CadastroCaminhoneiroPage() {
   return (
     <div style={estilos.containerGeral}>
       
-      {/* CARD PRINCIPAL ELEVADO */}
+      {/* CARD PRINCIPAL ELEVADO E RESPONSIVO */}
       <div style={estilos.cardElevado}>
         
         {/* CABEÇALHO DO CARD */}
@@ -134,16 +134,17 @@ export default function CadastroCaminhoneiroPage() {
         )}
 
         {/* FORMULÁRIO DE CADASTRO */}
-        <form onSubmit={handleSubmit} style={{ marginTop: '1.5rem' }}>
+        <form onSubmit={handleSubmit} style={{ marginTop: '1.25rem' }}>
           
           <div style={estilos.gridForm}>
             
             {/* NOME COMPLETO */}
-            <div style={{ gridColumn: 'span 2' }}>
+            <div style={estilos.colunaTotal}>
               <label style={estilos.label}>Nome Completo *</label>
               <input
                 type="text"
                 required
+                autoComplete="name"
                 placeholder="Digite o nome completo"
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
@@ -157,6 +158,7 @@ export default function CadastroCaminhoneiroPage() {
               <input
                 type="text"
                 required
+                inputMode="numeric" // 📱 Abre teclado numérico
                 placeholder="000.000.000-00"
                 value={cpf}
                 onChange={(e) => setCpf(e.target.value)}
@@ -168,7 +170,8 @@ export default function CadastroCaminhoneiroPage() {
             <div>
               <label style={estilos.label}>Contato / WhatsApp</label>
               <input
-                type="text"
+                type="tel"
+                inputMode="tel" // 📱 Abre teclado de telefone
                 placeholder="(00) 00000-0000"
                 value={contato}
                 onChange={(e) => setContato(e.target.value)}
@@ -181,6 +184,7 @@ export default function CadastroCaminhoneiroPage() {
               <label style={estilos.label}>PIS</label>
               <input
                 type="text"
+                inputMode="numeric"
                 placeholder="000.00000.00-0"
                 value={pis}
                 onChange={(e) => setPis(e.target.value)}
@@ -201,7 +205,7 @@ export default function CadastroCaminhoneiroPage() {
             </div>
 
             {/* CHAVE PIX */}
-            <div style={{ gridColumn: 'span 2' }}>
+            <div style={estilos.colunaTotal}>
               <label style={estilos.label}>Chave PIX / Dados Bancários</label>
               <input
                 type="text"
@@ -213,24 +217,25 @@ export default function CadastroCaminhoneiroPage() {
             </div>
 
             {/* PLACAS DOS CAMINHÕES */}
-            <div style={{ gridColumn: 'span 2' }}>
-              <label style={estilos.label}>Placas dos Caminhões (Separe por vírgula se tiver mais de um) *</label>
+            <div style={estilos.colunaTotal}>
+              <label style={estilos.label}>Placas dos Caminhões *</label>
               <input
                 type="text"
                 required
-                placeholder="Informe a placa ou placas separadas por vírgula"
+                autoCapitalize="characters"
+                placeholder="Ex: ABC1234, XYZ9876 (Separe por vírgula)"
                 value={placasTexto}
-                onChange={(e) => setPlacasTexto(e.target.value)}
-                style={estilos.inputSofisticado}
+                onChange={(e) => setPlacasTexto(e.target.value.toUpperCase())}
+                style={{ ...estilos.inputSofisticado, textTransform: 'uppercase', fontWeight: '800' }}
               />
               <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '0.35rem' }}>
-                💡 As minutas emitidas para estas placas serão vinculadas automaticamente ao seu painel.
+                💡 As minutas destas placas serão vinculadas automaticamente ao seu painel.
               </span>
             </div>
 
-            {/* PALAVRA-PASSE (SENHA) */}
-            <div style={{ gridColumn: 'span 2' }}>
-              <label style={estilos.label}>Crie uma Palavra-Passe (Senha) para Login *</label>
+            {/* SENHA */}
+            <div style={estilos.colunaTotal}>
+              <label style={estilos.label}>Crie uma Palavra-Passe (Senha) *</label>
               <input
                 type="password"
                 required
@@ -263,25 +268,28 @@ export default function CadastroCaminhoneiroPage() {
   );
 }
 
+// Estilos Mobile-First Responsivos
 const estilos: { [key: string]: React.CSSProperties } = {
   containerGeral: {
-    minHeight: '100vh',
+    minHeight: '100dvh', // Altura dinâmica do ecrã móvel
     width: '100vw',
     backgroundColor: '#020617',
     backgroundImage: 'radial-gradient(circle at 50% 0%, #1e1b4b 0%, #020617 70%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '2.5rem 1.5rem',
-    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    padding: '1rem 0.75rem',
+    boxSizing: 'border-box',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
   },
   cardElevado: {
     backgroundColor: '#ffffff',
-    padding: '3rem 2.5rem',
-    borderRadius: '24px',
+    padding: '2rem 1.25rem', // Padding ajustado para telemóveis
+    borderRadius: '20px',
     maxWidth: '680px',
     width: '100%',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+    boxSizing: 'border-box',
+    boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.5)',
   },
   cabecalho: {
     textAlign: 'center',
@@ -292,77 +300,79 @@ const estilos: { [key: string]: React.CSSProperties } = {
     color: '#2563eb',
     fontSize: '0.7rem',
     fontWeight: '800',
-    letterSpacing: '1px',
+    letterSpacing: '0.5px',
     padding: '0.35rem 0.85rem',
     borderRadius: '20px',
     marginBottom: '0.75rem',
   },
   tituloModal: {
     margin: 0,
-    fontSize: '1.75rem',
+    fontSize: '1.5rem',
     fontWeight: '800',
     color: '#0f172a',
-    letterSpacing: '-0.5px',
   },
   subtituloModal: {
     margin: '0.35rem 0 0 0',
-    fontSize: '0.875rem',
+    fontSize: '0.85rem',
     color: '#64748b',
-    lineHeight: 1.5,
+    lineHeight: 1.4,
   },
   caixaStatus: {
-    padding: '0.85rem',
+    padding: '0.75rem',
     borderRadius: '10px',
     fontSize: '0.85rem',
     fontWeight: '600',
-    marginTop: '1.25rem',
+    marginTop: '1rem',
     textAlign: 'center',
     border: '1px solid',
   },
   gridForm: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '1rem',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+    gap: '0.85rem',
+  },
+  colunaTotal: {
+    gridColumn: '1 / -1',
   },
   label: {
     display: 'block',
     marginBottom: '0.35rem',
-    fontSize: '0.8rem',
+    fontSize: '0.775rem',
     fontWeight: '700',
     color: '#1e293b',
     textTransform: 'uppercase',
-    letterSpacing: '0.5px',
   },
   inputSofisticado: {
     width: '100%',
+    minHeight: '48px', // Mínimo de 48px de altura para toque com o polegar
     padding: '0.75rem 0.9rem',
     borderRadius: '10px',
     border: '1px solid #cbd5e1',
     backgroundColor: '#f8fafc',
     color: '#0f172a',
-    fontSize: '0.9rem',
+    fontSize: '1rem', // Evita o zoom automático em iPhones/Androids
     fontWeight: '600',
     outline: 'none',
     boxSizing: 'border-box',
-    transition: 'all 0.2s ease-in-out',
   },
   botaoPrincipal: {
     width: '100%',
-    marginTop: '1.75rem',
+    minHeight: '52px', // Altura generosa para fácil toque no telemóvel
+    marginTop: '1.5rem',
     padding: '0.9rem',
     backgroundColor: '#2563eb',
     color: '#ffffff',
     border: 'none',
     borderRadius: '12px',
     fontWeight: '700',
-    fontSize: '0.95rem',
+    fontSize: '1rem',
     cursor: 'pointer',
     boxShadow: '0 10px 15px -3px rgba(37, 99, 235, 0.3)',
   },
   rodapeCard: {
     textAlign: 'center',
-    marginTop: '1.75rem',
-    paddingTop: '1.25rem',
+    marginTop: '1.5rem',
+    paddingTop: '1rem',
     borderTop: '1px solid #f1f5f9',
     fontSize: '0.875rem',
   },
@@ -371,5 +381,6 @@ const estilos: { [key: string]: React.CSSProperties } = {
     fontWeight: '700',
     textDecoration: 'none',
     marginLeft: '0.35rem',
+    padding: '0.25rem 0',
   },
 };

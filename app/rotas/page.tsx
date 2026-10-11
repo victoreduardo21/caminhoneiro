@@ -2,11 +2,11 @@
 
 /**
  * ============================================================================
- * PORTAL DO CAMINHONEIRO: CONSULTA DE ROTAS E FRETES (CORREÇÃO DE FETCH)
+ * PORTAL DO CAMINHONEIRO: CONSULTA DE ROTAS E FRETES (MOBILE-FIRST E RESPONSIVO)
  * Localização no VS Code: caminhoneiro/app/rotas/page.tsx
  * Tecnologias: Next.js (App Router), React, TypeScript
- * Descrição: Consulta a tabela de fretes no backend Express tratando erros de
- *            conexão, timeouts e requisições bloqueadas pelo navegador.
+ * Descrição: Exibe a tabela de fretes do motorista consultando a API backend.
+ *            Possui layout totalmente adaptado para telemóveis e computadores.
  * ============================================================================
  */
 
@@ -34,7 +34,7 @@ export default function RotasCaminhoneiroPage() {
   const [carregando, setCarregando] = useState(false);
   const [erroApi, setErroApi] = useState('');
 
-  // Endpoint do Servidor Express (Lê da variável de ambiente ou usa fallback local)
+  // Endpoint do Servidor Express
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   // Formatação de valores em Reais (R$)
@@ -49,16 +49,13 @@ export default function RotasCaminhoneiroPage() {
     setCarregando(true);
     setErroApi('');
 
-    // Cria um controlador para cancelar a requisição caso demore mais de 10 segundos
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
     try {
-      // 1. Formata a URL base removendo barras duplicadas no final
       const baseUrl = apiUrl.replace(/\/$/, '');
       const url = `${baseUrl}/rotas-valores?busca=${encodeURIComponent(termo.trim())}`;
 
-      // 2. Executa a requisição de rede segura
       const res = await fetch(url, {
         method: 'GET',
         headers: {
@@ -70,12 +67,10 @@ export default function RotasCaminhoneiroPage() {
 
       clearTimeout(timeoutId);
 
-      // 3. Lê o texto da resposta
       const textoResposta = await res.text();
 
-      // Se o servidor responder com HTML (ex: página de erro 404/500 da hospedagem)
       if (textoResposta.trim().startsWith('<')) {
-        throw new Error('O servidor backend devolveu uma página HTML. Verifique se o servidor Express está ativo e a rota /rotas-valores existe.');
+        throw new Error('O servidor backend devolveu uma página HTML. Verifique se o servidor Express está ativo.');
       }
 
       const data = JSON.parse(textoResposta);
@@ -100,7 +95,7 @@ export default function RotasCaminhoneiroPage() {
       if (erro.name === 'AbortError') {
         setErroApi('⏱️ O servidor demorou muito para responder. Verifique sua conexão com a internet.');
       } else if (erro.message === 'Failed to fetch') {
-        setErroApi(`❌ Não foi possível conectar ao servidor (${apiUrl}). Verifique se o servidor backend está ligado na porta 3001.`);
+        setErroApi(`❌ Não foi possível conectar ao servidor (${apiUrl}). Verifique se o servidor backend está ativo.`);
       } else {
         setErroApi(`⚠️ ${erro.message || 'Erro ao conectar com o servidor backend.'}`);
       }
@@ -141,61 +136,61 @@ export default function RotasCaminhoneiroPage() {
   if (!isMounted) return null;
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex' }}>
+    <div style={{ minHeight: '100dvh', backgroundColor: '#f8fafc', color: '#0f172a' }}>
       
-      {/* BARRA DE NAVEGAÇÃO LATERAL */}
+      {/* BARRA DE NAVEGAÇÃO LATERAL/TOPO RESPONSIVA */}
       <Sidebar usuario={motorista || { nome: 'Motorista' }} />
 
       {/* CONTEÚDO PRINCIPAL */}
-      <main style={{ marginLeft: '260px', flex: 1, padding: '2rem 3rem' }}>
+      <main style={estilos.mainContainer}>
         
         {/* CABEÇALHO */}
-        <header style={{ marginBottom: '1.5rem' }}>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+        <header style={{ marginBottom: '1.25rem' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
             🗺️ Rotas e Valores
           </h1>
-          <p style={{ color: '#64748b', margin: '0.25rem 0 0 0', fontSize: '0.9rem' }}>
+          <p style={{ color: '#64748b', margin: '0.25rem 0 0 0', fontSize: '0.85rem' }}>
             Consulte as rotas disponíveis e os valores de frete da tabela.
           </p>
         </header>
 
         {/* ALERTA DE ERRO DE CONEXÃO */}
         {erroApi && (
-          <div style={{ padding: '0.85rem 1rem', borderRadius: '8px', backgroundColor: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', marginBottom: '1.5rem', fontSize: '0.9rem', fontWeight: '600' }}>
+          <div style={{ padding: '0.85rem 1rem', borderRadius: '10px', backgroundColor: '#fef2f2', color: '#991b1b', border: '1px solid #fecaca', marginBottom: '1.25rem', fontSize: '0.85rem', fontWeight: '600' }}>
             {erroApi}
           </div>
         )}
 
-        {/* BARRA DE PESQUISA */}
-        <section style={{ backgroundColor: '#ffffff', padding: '1rem', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1.5rem', display: 'flex', gap: '0.75rem' }}>
+        {/* BARRA DE PESQUISA RESPONSIVA */}
+        <section style={estilos.caixaPesquisa}>
           <input
             type="text"
-            placeholder="🔍 Pesquisar por Origem, Destino ou Cliente (ex: Cubatão, Santos, Brado)..."
+            placeholder="🔍 Origem, Destino ou Cliente (ex: Cubatão, Santos)..."
             value={termoBusca}
             onChange={(e) => setTermoBusca(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && carregarRotas(termoBusca)}
-            style={{ flex: 1, padding: '0.7rem 1rem', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.95rem', color: '#0f172a', outline: 'none' }}
+            style={estilos.inputPesquisa}
           />
           <button
             onClick={() => carregarRotas(termoBusca)}
             disabled={carregando}
-            style={{ backgroundColor: '#2563eb', color: '#ffffff', padding: '0.7rem 1.5rem', borderRadius: '8px', border: 'none', fontWeight: '700', cursor: 'pointer' }}
+            style={estilos.botaoBuscar}
           >
             {carregando ? '⏳' : 'Buscar'}
           </button>
         </section>
 
         {/* LISTA / CARDS DE FRETES */}
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1.25rem' }}>
+        <section style={estilos.gridRotas}>
           {carregando ? (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b' }}>
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2.5rem 1rem', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b' }}>
               <span style={{ fontSize: '2rem' }}>⏳</span>
-              <p style={{ marginTop: '0.5rem', fontSize: '1rem', fontWeight: '600' }}>A consultar tabela de fretes no servidor...</p>
+              <p style={{ marginTop: '0.5rem', fontSize: '0.95rem', fontWeight: '600' }}>A consultar tabela de fretes no servidor...</p>
             </div>
           ) : rotas.length === 0 ? (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '3rem', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b' }}>
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '2.5rem 1rem', backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b' }}>
               <span style={{ fontSize: '2.5rem' }}>🚛</span>
-              <p style={{ marginTop: '0.5rem', fontSize: '1rem' }}>
+              <p style={{ marginTop: '0.5rem', fontSize: '0.95rem' }}>
                 Nenhuma rota encontrada para a pesquisa efetuada.
               </p>
             </div>
@@ -211,7 +206,7 @@ export default function RotasCaminhoneiroPage() {
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
                 }}
               >
                 <div>
@@ -227,12 +222,12 @@ export default function RotasCaminhoneiroPage() {
                   </div>
 
                   <div style={{ margin: '0.5rem 0 1rem 0' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '700', textTransform: 'uppercase' }}>
                       ORIGEM → DESTINO
                     </div>
-                    <div style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a', marginTop: '0.25rem' }}>
+                    <div style={{ fontSize: '1.05rem', fontWeight: '800', color: '#0f172a', marginTop: '0.25rem', wordBreak: 'break-word' }}>
                       <span style={{ color: '#2563eb' }}>{item.origem}</span>
-                      <span style={{ margin: '0 0.4rem', color: '#94a3b8' }}>→</span>
+                      <span style={{ margin: '0 0.3rem', color: '#94a3b8' }}>→</span>
                       <span style={{ color: '#16a34a' }}>{item.destino}</span>
                     </div>
                   </div>
@@ -246,7 +241,7 @@ export default function RotasCaminhoneiroPage() {
 
                 <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '0.85rem', marginTop: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#64748b' }}>VALOR CARRETEIRO</span>
-                  <strong style={{ fontSize: '1.3rem', fontWeight: '800', color: '#16a34a' }}>
+                  <strong style={{ fontSize: '1.25rem', fontWeight: '800', color: '#16a34a' }}>
                     {formatarMoeda(item.valorFreteCarreteiro)}
                   </strong>
                 </div>
@@ -259,3 +254,50 @@ export default function RotasCaminhoneiroPage() {
     </div>
   );
 }
+
+// Estilos Responsivos
+const estilos: { [key: string]: React.CSSProperties } = {
+  mainContainer: {
+    padding: '1.25rem 1rem',
+    boxSizing: 'border-box',
+    width: '100%',
+  },
+  caixaPesquisa: {
+    backgroundColor: '#ffffff',
+    padding: '0.85rem',
+    borderRadius: '12px',
+    border: '1px solid #e2e8f0',
+    marginBottom: '1.25rem',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.65rem',
+  },
+  inputPesquisa: {
+    flex: '1 1 200px',
+    minHeight: '44px',
+    padding: '0.7rem 0.9rem',
+    borderRadius: '8px',
+    border: '1px solid #cbd5e1',
+    fontSize: '0.95rem',
+    color: '#0f172a',
+    outline: 'none',
+    boxSizing: 'border-box',
+  },
+  botaoBuscar: {
+    minHeight: '44px',
+    backgroundColor: '#2563eb',
+    color: '#ffffff',
+    padding: '0.7rem 1.25rem',
+    borderRadius: '8px',
+    border: 'none',
+    fontWeight: '700',
+    fontSize: '0.95rem',
+    cursor: 'pointer',
+    flex: '0 0 auto',
+  },
+  gridRotas: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gap: '1rem',
+  },
+};

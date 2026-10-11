@@ -2,12 +2,12 @@
 
 /**
  * ============================================================================
- * TELA: MINUTAS DO CAMINHONEIRO (SUPORTE A MÚLTIPLAS PLACAS E API DINÂMICA)
+ * TELA: MINUTAS DO CAMINHONEIRO (MOBILE-FIRST E RESPONSIVA)
  * Localização no Projeto: caminhoneiro/app/minutas/page.tsx
  * Rota no Navegador: /minutas
  * Tecnologias: Next.js (App Router), React, TypeScript
  * Descrição: Exibe as minutas do motorista permitindo alternar entre todas
- *            as placas cadastradas no seu perfil ou consultar todas juntas.
+ *            as placas cadastradas, 100% adaptado para celulares.
  * ============================================================================
  */
 
@@ -20,9 +20,9 @@ interface MinutaMotorista {
   conteiner: string;
   terminalOrigem: string;
   terminalDestino: string;
-  dataOp: string; // Data de Operação / Entrega
+  dataOp: string;
   dataVencimento?: string;
-  dataPagamento?: string; // Data em que o financeiro deu baixa/pagou
+  dataPagamento?: string;
   tipoPgto: string;
   valorBruto: number;
   valorRpa: number;
@@ -34,7 +34,6 @@ interface MinutaMotorista {
 }
 
 export default function MinutasCaminhoneiroPage() {
-  // Lista de placas do motorista e placa selecionada no momento
   const [minhasPlacas, setMinhasPlacas] = useState<string[]>([]);
   const [placaSelecionada, setPlacaSelecionada] = useState<string>('');
   
@@ -53,10 +52,8 @@ export default function MinutasCaminhoneiroPage() {
     totalMinutas: 0,
   });
 
-  // URL base da API do Backend
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
-  // 1. Função para carregar as minutas conectando ao backend MongoDB via API
   const carregarMinutasDoMotorista = useCallback(async (placaBusca: string) => {
     if (!placaBusca || placaBusca.trim() === '') {
       setMensagemStatus('⚠️ Nenhuma placa selecionada para consulta.');
@@ -67,7 +64,6 @@ export default function MinutasCaminhoneiroPage() {
     setMensagemStatus(`⏳ A consultar fretes para o veículo ${placaBusca}...`);
 
     try {
-      // Remove barra no final da URL para evitar caminhos duplicados
       const baseUrl = apiUrl.replace(/\/$/, '');
       const endpoint = `${baseUrl}/importacao/minhas-minutas?placa=${encodeURIComponent(placaBusca.trim())}`;
 
@@ -107,7 +103,6 @@ export default function MinutasCaminhoneiroPage() {
     }
   }, [apiUrl]);
 
-  // 2. Leitura inicial da sessão local (localStorage) para buscar todas as placas salvas
   useEffect(() => {
     const dadosSalvos = localStorage.getItem('motorista') || localStorage.getItem('usuario') || localStorage.getItem('user');
     let listaPlacasMotorista: string[] = [];
@@ -116,7 +111,6 @@ export default function MinutasCaminhoneiroPage() {
       try {
         const obj = JSON.parse(dadosSalvos);
         
-        // Trata o array de placas ou campo único de placa
         if (Array.isArray(obj.placas) && obj.placas.length > 0) {
           listaPlacasMotorista = obj.placas.map((p: string) => String(p).trim().toUpperCase());
         } else if (obj.placa || obj.cavalo) {
@@ -127,7 +121,6 @@ export default function MinutasCaminhoneiroPage() {
       }
     }
 
-    // Remove duplicados e entradas vazias
     const placasLimpas = Array.from(new Set(listaPlacasMotorista.filter(Boolean)));
     setMinhasPlacas(placasLimpas);
 
@@ -140,7 +133,6 @@ export default function MinutasCaminhoneiroPage() {
     }
   }, [carregarMinutasDoMotorista]);
 
-  // 3. Handler acionado ao trocar de placa no select
   const handleTrocarPlaca = (novaPlaca: string) => {
     setPlacaSelecionada(novaPlaca);
     if (novaPlaca) {
@@ -163,7 +155,6 @@ export default function MinutasCaminhoneiroPage() {
     }
   };
 
-  // Filtra as minutas pela aba de status
   const minutasFiltradas = minutas.filter((item) => {
     if (abaAtiva === 'PENDENTE') return item.statusPagamento === 'PENDENTE';
     if (abaAtiva === 'PAGO') return item.statusPagamento === 'PAGO';
@@ -171,47 +162,37 @@ export default function MinutasCaminhoneiroPage() {
   });
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', color: '#0f172a' }}>
+    <div style={{ minHeight: '100dvh', backgroundColor: '#f8fafc', color: '#0f172a' }}>
       
-      {/* Sidebar / Navbar */}
+      {/* Componente Navbar Híbrido */}
       <Navbar />
 
-      <main style={{ marginLeft: '250px', flex: 1, padding: '2rem 3rem' }}>
+      <main style={estilos.mainContainer}>
         
-        {/* CABEÇALHO COM SELETOR DE TODAS AS PLACAS DO MOTORISTA */}
-        <header style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* CABEÇALHO COM SELETOR DE PLACAS RESPONSIVO */}
+        <header style={estilos.headerFlex}>
           <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
-              🚚 Minhas Minutas de Transporte
+            <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+              🚚 Minhas Minutas
             </h1>
-            <p style={{ color: '#64748b', margin: '0.25rem 0 0 0', fontSize: '0.9rem', fontWeight: '500' }}>
-              Consulte os fretes e o status de pagamento dos seus veículos
+            <p style={{ color: '#64748b', margin: '0.25rem 0 0 0', fontSize: '0.85rem', fontWeight: '500' }}>
+              Consulte os fretes e pagamentos dos seus veículos
             </p>
           </div>
 
-          {/* SELETOR DINÂMICO DAS PLACAS CADASTRADAS */}
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: '#ffffff', padding: '0.5rem 0.85rem', borderRadius: '8px', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+          {/* SELETOR DE PLACAS COM ÁREA DE TOQUE AMPLIADA */}
+          <div style={estilos.caixaSeletor}>
             <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#475569' }}>Veículo:</span>
             
             {minhasPlacas.length > 0 ? (
               <select
                 value={placaSelecionada}
                 onChange={(e) => handleTrocarPlaca(e.target.value)}
-                style={{
-                  padding: '0.4rem 0.75rem',
-                  borderRadius: '6px',
-                  border: '1px solid #94a3b8',
-                  fontWeight: '800',
-                  fontSize: '0.9rem',
-                  color: '#0f172a',
-                  backgroundColor: '#ffffff',
-                  outline: 'none',
-                  cursor: 'pointer',
-                }}
+                style={estilos.selectPlaca}
               >
                 {minhasPlacas.map((p, idx) => (
                   <option key={idx} value={p}>
-                    🚚 Placa: {p}
+                    🚚 {p}
                   </option>
                 ))}
               </select>
@@ -220,17 +201,17 @@ export default function MinutasCaminhoneiroPage() {
                 type="text"
                 value={placaSelecionada}
                 onChange={(e) => setPlacaSelecionada(e.target.value.toUpperCase())}
-                placeholder="Digite a placa"
-                style={{ width: '120px', padding: '0.35rem', borderRadius: '6px', border: '1px solid #cbd5e1', fontWeight: '800', textAlign: 'center' }}
+                placeholder="Placa"
+                style={estilos.inputPlaca}
               />
             )}
 
             <button
               onClick={() => carregarMinutasDoMotorista(placaSelecionada)}
               disabled={carregando}
-              style={{ backgroundColor: '#2563eb', color: '#ffffff', border: 'none', padding: '0.45rem 0.85rem', borderRadius: '6px', fontWeight: '800', cursor: 'pointer', fontSize: '0.85rem' }}
+              style={estilos.botaoAtualizar}
             >
-              {carregando ? '⏳' : '🔍 Atualizar'}
+              {carregando ? '⏳' : '🔍 Buscar'}
             </button>
           </div>
         </header>
@@ -239,8 +220,8 @@ export default function MinutasCaminhoneiroPage() {
         {mensagemStatus && (
           <div style={{
             padding: '0.85rem',
-            borderRadius: '8px',
-            fontSize: '0.9rem',
+            borderRadius: '10px',
+            fontSize: '0.85rem',
             fontWeight: '700',
             marginBottom: '1.25rem',
             backgroundColor: mensagemStatus.includes('❌') ? '#fef2f2' : mensagemStatus.includes('✅') ? '#f0fdf4' : '#eff6ff',
@@ -252,7 +233,7 @@ export default function MinutasCaminhoneiroPage() {
           </div>
         )}
 
-        {/* CARDS DE RESUMO FINANCEIRO */}
+        {/* CARDS DE RESUMO FINANCEIRO (KPIs) */}
         <section style={estilos.gridTotais}>
           <div style={estilos.cardKpi}>
             <span style={estilos.tituloKpi}>TOTAL LÍQUIDO A RECEBER</span>
@@ -303,9 +284,9 @@ export default function MinutasCaminhoneiroPage() {
           </button>
         </div>
 
-        {/* TABELA DE MINUTAS */}
+        {/* TABELA DE MINUTAS COM ROLAGEM HORIZONTAL SUAVE NO TELEMÓVEL */}
         <section style={estilos.cardBoxTabela}>
-          <div style={{ overflowX: 'auto' }}>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <table style={estilos.tabela}>
               <thead>
                 <tr>
@@ -322,7 +303,7 @@ export default function MinutasCaminhoneiroPage() {
                 {minutasFiltradas.length === 0 ? (
                   <tr>
                     <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#64748b', fontWeight: '600' }}>
-                      Nenhuma minuta encontrada na base para a placa selecionada.
+                      Nenhuma minuta encontrada para a placa selecionada.
                     </td>
                   </tr>
                 ) : (
@@ -380,16 +361,98 @@ export default function MinutasCaminhoneiroPage() {
   );
 }
 
+// Estilos Responsivos Otimizados para Celular
 const estilos: { [key: string]: React.CSSProperties } = {
-  gridTotais: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem' },
-  cardKpi: { backgroundColor: '#ffffff', padding: '1.25rem', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 2px 4px rgba(0,0,0,0.03)' },
+  mainContainer: {
+    padding: '1.25rem 1rem',
+    boxSizing: 'border-box',
+    width: '100%',
+  },
+  headerFlex: {
+    marginBottom: '1.25rem',
+    display: 'flex',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: '1rem',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  caixaSeletor: {
+    display: 'flex',
+    gap: '0.5rem',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    padding: '0.5rem 0.75rem',
+    borderRadius: '10px',
+    border: '1px solid #cbd5e1',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
+    width: '100%',
+    maxWidth: '360px',
+  },
+  selectPlaca: {
+    flex: 1,
+    minHeight: '40px',
+    padding: '0.4rem 0.5rem',
+    borderRadius: '6px',
+    border: '1px solid #94a3b8',
+    fontWeight: '800',
+    fontSize: '0.9rem',
+    color: '#0f172a',
+    backgroundColor: '#ffffff',
+    outline: 'none',
+  },
+  inputPlaca: {
+    flex: 1,
+    minHeight: '40px',
+    padding: '0.4rem 0.5rem',
+    borderRadius: '6px',
+    border: '1px solid #cbd5e1',
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  botaoAtualizar: {
+    minHeight: '40px',
+    backgroundColor: '#2563eb',
+    color: '#ffffff',
+    border: 'none',
+    padding: '0.45rem 0.85rem',
+    borderRadius: '6px',
+    fontWeight: '800',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+  },
+  gridTotais: { 
+    display: 'grid', 
+    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
+    gap: '1rem', 
+    marginBottom: '1.25rem' 
+  },
+  cardKpi: { 
+    backgroundColor: '#ffffff', 
+    padding: '1rem', 
+    borderRadius: '12px', 
+    border: '1px solid #e2e8f0', 
+    boxShadow: '0 2px 4px rgba(0,0,0,0.03)' 
+  },
   tituloKpi: { fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' },
-  valorKpi: { margin: '0.4rem 0', fontSize: '1.5rem', fontWeight: '800' },
-  containerAbas: { display: 'flex', gap: '0.5rem', marginBottom: '1rem' },
-  botaoAba: { padding: '0.6rem 1.2rem', backgroundColor: '#e2e8f0', color: '#475569', border: 'none', borderRadius: '8px', fontWeight: '800', cursor: 'pointer', fontSize: '0.85rem' },
+  valorKpi: { margin: '0.3rem 0', fontSize: '1.35rem', fontWeight: '800' },
+  containerAbas: { display: 'flex', gap: '0.35rem', marginBottom: '1rem', overflowX: 'auto' },
+  botaoAba: { 
+    flex: 1, 
+    minHeight: '42px', 
+    padding: '0.5rem 0.75rem', 
+    backgroundColor: '#e2e8f0', 
+    color: '#475569', 
+    border: 'none', 
+    borderRadius: '8px', 
+    fontWeight: '800', 
+    cursor: 'pointer', 
+    fontSize: '0.8rem',
+    whiteSpace: 'nowrap'
+  },
   botaoAbaAtivo: { backgroundColor: '#2563eb', color: '#ffffff' },
   cardBoxTabela: { backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.03)' },
   tabela: { width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85rem' },
-  th: { padding: '0.85rem 1rem', backgroundColor: '#f1f5f9', color: '#475569', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase' },
-  td: { padding: '0.85rem 1rem', color: '#1e293b' },
+  th: { padding: '0.75rem 0.85rem', backgroundColor: '#f1f5f9', color: '#475569', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', whiteSpace: 'nowrap' },
+  td: { padding: '0.75rem 0.85rem', color: '#1e293b', whiteSpace: 'nowrap' },
 };

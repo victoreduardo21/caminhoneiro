@@ -2,8 +2,8 @@
 
 /**
  * ============================================================================
- * TELA: CONFIGURAÇÕES E FROTA DO MOTORISTA (INTEGRADA AO MONGODB ATLAS)
- * Localização no VS Code: motorista/app/configuracoes/page.tsx
+ * TELA: CONFIGURAÇÕES E FROTA DO MOTORISTA (MOBILE-FIRST E RESPONSIVA)
+ * Localização no VS Code: caminhoneiro/app/configuracoes/page.tsx
  * Tecnologias: Next.js (React / TypeScript), API Express, MongoDB Atlas
  * Descrição: Carrega os dados reais e as placas registradas na coleção
  *            'caminhoneiros' consumindo os endpoints do servidor Express.
@@ -187,21 +187,21 @@ export default function ConfiguracoesMotoristaPage() {
   if (!motoristaLogado) return null;
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f8fafc', display: 'flex', color: '#0f172a' }}>
+    <div style={{ minHeight: '100dvh', backgroundColor: '#f8fafc', color: '#0f172a' }}>
       
-      {/* COMPONENTE NAVBAR */}
+      {/* COMPONENTE NAVBAR RESPONSIVO */}
       <Navbar />
 
       {/* CONTEÚDO DA PÁGINA */}
-      <main style={{ marginLeft: '260px', flex: 1, padding: '2rem 3rem' }}>
+      <main style={estilos.mainContainer}>
         
-        <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <header style={estilos.headerFlex}>
           <div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
               ⚙️ Configurações & Frota
             </h1>
-            <p style={{ color: '#475569', margin: '0.25rem 0 0 0', fontSize: '0.9rem', fontWeight: '500' }}>
-              Consulte e gira os veículos vinculados ao seu CPF ({motoristaLogado.cpf || 'Não informado'})
+            <p style={{ color: '#475569', margin: '0.25rem 0 0 0', fontSize: '0.85rem', fontWeight: '500' }}>
+              CPF: <strong>{motoristaLogado.cpf || 'Não informado'}</strong>
             </p>
           </div>
 
@@ -215,10 +215,10 @@ export default function ConfiguracoesMotoristaPage() {
 
         {mensagemStatus && (
           <div style={{
-            marginBottom: '1.5rem',
+            marginBottom: '1.25rem',
             padding: '0.85rem',
-            borderRadius: '8px',
-            fontSize: '0.9rem',
+            borderRadius: '10px',
+            fontSize: '0.85rem',
             fontWeight: '700',
             textAlign: 'center',
             backgroundColor: mensagemStatus.includes('❌') ? '#fef2f2' : '#f0fdf4',
@@ -231,12 +231,12 @@ export default function ConfiguracoesMotoristaPage() {
         )}
 
         {/* EXIBIÇÃO DAS PLACAS CONSULTADAS DO MONGODB ATLAS */}
-        <section style={{ backgroundColor: '#ffffff', borderRadius: '12px', padding: '2rem', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', maxWidth: '900px' }}>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a', marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
-            🚚 Veículos no Banco de Dados ({listaPlacas.length})
+        <section style={estilos.cardBoxSecao}>
+          <h2 style={{ fontSize: '1.05rem', fontWeight: '800', color: '#0f172a', marginBottom: '1.25rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
+            🚚 Veículos Registados ({listaPlacas.length})
           </h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1.5rem' }}>
+          <div style={estilos.gridPlacas}>
             {listaPlacas.length > 0 ? (
               listaPlacas.map((placaItem, index) => (
                 <div key={index} style={estilos.cartaoPlaca}>
@@ -255,8 +255,8 @@ export default function ConfiguracoesMotoristaPage() {
           <div style={estilos.overlayModal}>
             <div style={estilos.conteudoModal}>
               
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.75rem' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
                   🚚 Cadastrar Nova Placa
                 </h3>
                 <button onClick={() => setMostrarModal(false)} style={estilos.botaoFecharModal}>
@@ -264,7 +264,7 @@ export default function ConfiguracoesMotoristaPage() {
                 </button>
               </div>
 
-              <form onSubmit={handleCadastrarNovaPlaca} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <form onSubmit={handleCadastrarNovaPlaca} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
                   <label style={estilos.label}>Placa do Veículo *</label>
                   <input
@@ -273,6 +273,7 @@ export default function ConfiguracoesMotoristaPage() {
                     onChange={(e) => setNovaPlacaInput(e.target.value.toUpperCase())}
                     placeholder="Ex: XYZ9876"
                     required
+                    autoCapitalize="characters"
                     style={{ ...estilos.input, textTransform: 'uppercase', fontWeight: '800' }}
                   />
                 </div>
@@ -283,15 +284,16 @@ export default function ConfiguracoesMotoristaPage() {
                     type="text"
                     value={pixInput}
                     onChange={(e) => setPixInput(e.target.value)}
-                    placeholder="E-mail, Telefone, CPF ou Chave Aleatória"
+                    placeholder="E-mail, Telefone ou CPF"
                     style={estilos.input}
                   />
                 </div>
 
                 <div>
-                  <label style={estilos.label}>Telefone / Contacto do Veículo (Opcional)</label>
+                  <label style={estilos.label}>Contacto do Veículo (Opcional)</label>
                   <input
                     type="tel"
+                    inputMode="tel"
                     value={contatoInput}
                     onChange={(e) => setContatoInput(e.target.value)}
                     placeholder="(00) 00000-0000"
@@ -299,7 +301,7 @@ export default function ConfiguracoesMotoristaPage() {
                   />
                 </div>
 
-                <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                   <button
                     type="button"
                     onClick={() => setMostrarModal(false)}
@@ -312,7 +314,7 @@ export default function ConfiguracoesMotoristaPage() {
                     disabled={carregando}
                     style={estilos.botaoConfirmarModal}
                   >
-                    {carregando ? '⏳ A gravar...' : '✅ Confirmar e Salvar'}
+                    {carregando ? '⏳ A gravar...' : '✅ Salvar'}
                   </button>
                 </div>
               </form>
@@ -326,32 +328,48 @@ export default function ConfiguracoesMotoristaPage() {
   );
 }
 
-// Estilos padronizados
+// Estilos Responsivos Otimizados para Celular
 const estilos: { [key: string]: React.CSSProperties } = {
   carregandoContainer: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: '100vh',
+    minHeight: '100dvh',
     backgroundColor: '#f8fafc',
     color: '#0f172a',
     fontWeight: 'bold',
   },
+  mainContainer: {
+    padding: '1.25rem 1rem',
+    boxSizing: 'border-box',
+    width: '100%',
+  },
+  headerFlex: {
+    marginBottom: '1.25rem',
+    display: 'flex',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: '1rem',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   label: {
     display: 'block',
-    fontSize: '0.85rem',
+    fontSize: '0.8rem',
     fontWeight: '800',
     color: '#1e293b',
-    marginBottom: '0.4rem',
+    marginBottom: '0.35rem',
+    textTransform: 'uppercase',
   },
   input: {
     width: '100%',
+    minHeight: '48px',
     padding: '0.75rem',
-    borderRadius: '8px',
-    border: '1px solid #94a3b8',
+    borderRadius: '10px',
+    border: '1px solid #cbd5e1',
     backgroundColor: '#ffffff',
     color: '#0f172a',
-    fontSize: '0.95rem',
+    fontSize: '1rem',
     fontWeight: '600',
     outline: 'none',
     boxSizing: 'border-box',
@@ -360,12 +378,26 @@ const estilos: { [key: string]: React.CSSProperties } = {
     backgroundColor: '#16a34a',
     color: '#ffffff',
     border: 'none',
+    minHeight: '44px',
     padding: '0.75rem 1.25rem',
-    borderRadius: '8px',
+    borderRadius: '10px',
     fontWeight: '800',
     fontSize: '0.9rem',
     cursor: 'pointer',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    width: '100%',
+    maxWidth: '240px',
+  },
+  cardBoxSecao: {
+    backgroundColor: '#ffffff',
+    borderRadius: '12px',
+    padding: '1.25rem',
+    border: '1px solid #cbd5e1',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
+  },
+  gridPlacas: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+    gap: '1rem',
   },
   cartaoPlaca: {
     border: '2px solid #000000',
@@ -383,10 +415,10 @@ const estilos: { [key: string]: React.CSSProperties } = {
     padding: '0.2rem 0',
   },
   textoPlaca: {
-    fontSize: '1.6rem',
+    fontSize: '1.4rem',
     fontWeight: '900',
     color: '#000000',
-    padding: '0.4rem 0',
+    padding: '0.35rem 0',
     letterSpacing: '2px',
   },
   overlayModal: {
@@ -395,19 +427,21 @@ const estilos: { [key: string]: React.CSSProperties } = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
+    padding: '1rem',
   },
   conteudoModal: {
     backgroundColor: '#ffffff',
-    borderRadius: '12px',
-    padding: '2rem',
+    borderRadius: '16px',
+    padding: '1.25rem',
     width: '100%',
-    maxWidth: '480px',
+    maxWidth: '440px',
     boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+    boxSizing: 'border-box',
   },
   botaoFecharModal: {
     background: 'none',
@@ -418,8 +452,9 @@ const estilos: { [key: string]: React.CSSProperties } = {
   },
   botaoCancelarModal: {
     flex: 1,
+    minHeight: '44px',
     padding: '0.75rem',
-    borderRadius: '8px',
+    borderRadius: '10px',
     border: '1px solid #cbd5e1',
     backgroundColor: '#f1f5f9',
     color: '#475569',
@@ -428,8 +463,9 @@ const estilos: { [key: string]: React.CSSProperties } = {
   },
   botaoConfirmarModal: {
     flex: 1,
+    minHeight: '44px',
     padding: '0.75rem',
-    borderRadius: '8px',
+    borderRadius: '10px',
     border: 'none',
     backgroundColor: '#16a34a',
     color: '#ffffff',
