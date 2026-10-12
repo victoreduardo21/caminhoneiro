@@ -2,12 +2,11 @@
 
 /**
  * ============================================================================
- * TELA: MINUTAS DO CAMINHONEIRO (RESPONSIVIDADE E LARGURA CORRIGIDAS)
+ * TELA: MINUTAS DO CAMINHONEIRO (CORRIGIDA - EXIBIÇÃO DA DATA DE PAGAMENTO)
  * Localização no Projeto: caminhoneiro/app/minutas/page.tsx
  * Rota no Navegador: /minutas
  * Tecnologias: Next.js (App Router), React, TypeScript
- * Descrição: Corrige o estouro de largura e alinha o conteúdo perfeitamente
- *            ao lado da Sidebar no computador e tela cheia no celular.
+ * Descrição: Exibe as minutas e lê o campo dataPagamentoRealizado do MongoDB.
  * ============================================================================
  */
 
@@ -23,6 +22,7 @@ interface MinutaMotorista {
   dataOp: string;
   dataVencimento?: string;
   dataPagamento?: string;
+  dataPagamentoRealizado?: string; // Campo oficial do Schema Mongoose (Minuta.js)
   tipoPgto: string;
   valorBruto: number;
   valorRpa: number;
@@ -144,9 +144,27 @@ export default function MinutasCaminhoneiroPage() {
     return (val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
+  /**
+   * FORMATAÇÃO INTELIGENTE DE DATA (EVITA N/A E EVITA PERDA DE DIA NO FUSO)
+   */
   const formatarData = (dataTexto?: string) => {
     if (!dataTexto) return 'N/A';
+    
+    // Se a data já estiver formatada no padrão brasileiro (ex: "12/10/2026")
+    if (typeof dataTexto === 'string' && dataTexto.includes('/')) {
+      return dataTexto;
+    }
+
     try {
+      // Se vier como "YYYY-MM-DD" ou String ISO do MongoDB
+      const partes = String(dataTexto).split('T')[0].split('-');
+      if (partes.length === 3) {
+        const ano = partes[0];
+        const mes = partes[1];
+        const dia = partes[2];
+        return `${dia}/${mes}/${ano}`;
+      }
+
       const d = new Date(dataTexto);
       if (isNaN(d.getTime())) return dataTexto;
       return d.toLocaleDateString('pt-BR');
@@ -164,7 +182,7 @@ export default function MinutasCaminhoneiroPage() {
   return (
     <div style={{ minHeight: '100dvh', backgroundColor: '#f8fafc', color: '#0f172a', overflowX: 'hidden' }}>
       
-      {/* REGRAS DE LAYOUT EXACTAS PARA COMPUTADOR E CELULAR */}
+      {/* REGRAS DE LAYOUT EXATAS PARA COMPUTADOR E CELULAR */}
       <style jsx global>{`
         .area-conteudo-pagina {
           padding: 1.25rem;
@@ -342,6 +360,9 @@ export default function MinutasCaminhoneiroPage() {
                     const descAdd = m.descontoAdicionalAplicado || 0;
                     const vLiquido = m.valorFinalPago || m.valorLiquidoFinal || (vBruto - vRpa - descAdd);
 
+                    // BUSCA O CAMPO OFICIAL DA DATA DO PAGAMENTO DO MONGODB (Minuta.js)
+                    const dataDoPagamento = m.dataPagamentoRealizado || m.dataPagamento;
+
                     return (
                       <tr key={m._id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                         <td style={estilos.td}>
@@ -359,9 +380,12 @@ export default function MinutasCaminhoneiroPage() {
                         <td style={{ ...estilos.td, fontWeight: '800', color: '#16a34a' }}>
                           {formatarMoeda(vLiquido)}
                         </td>
+                        
+                        {/* COLUNA DATA PGTO CORRIGIDA */}
                         <td style={{ ...estilos.td, fontWeight: '700', color: m.statusPagamento === 'PAGO' ? '#16a34a' : '#64748b' }}>
-                          {m.statusPagamento === 'PAGO' ? `✅ ${formatarData(m.dataPagamento)}` : '⏳ Aguardando'}
+                          {m.statusPagamento === 'PAGO' ? `✅ ${formatarData(dataDoPagamento)}` : '⏳ Aguardando'}
                         </td>
+
                         <td style={estilos.td}>
                           <span style={{
                             padding: '0.25rem 0.6rem',
