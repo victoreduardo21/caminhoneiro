@@ -2,16 +2,19 @@
 
 /**
  * ============================================================================
- * TELA: MINUTAS DO CAMINHONEIRO (CORRIGIDA - EXIBIÇÃO DA DATA DE PAGAMENTO)
+ * TELA: MINUTAS DO CAMINHONEIRO (COM GERADOR E DOWNLOAD DE PDF)
  * Localização no Projeto: caminhoneiro/app/minutas/page.tsx
  * Rota no Navegador: /minutas
- * Tecnologias: Next.js (App Router), React, TypeScript
- * Descrição: Exibe as minutas e lê o campo dataPagamentoRealizado do MongoDB.
+ * Tecnologias: Next.js (App Router), React, TypeScript, jsPDF
+ * Descrição: Exibe o extrato financeiro do motorista e permite baixar um
+ *            relatório oficial em PDF para arquivamento definitivo.
  * ============================================================================
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from '../components/Navbar';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface MinutaMotorista {
   _id: string;
@@ -22,7 +25,7 @@ interface MinutaMotorista {
   dataOp: string;
   dataVencimento?: string;
   dataPagamento?: string;
-  dataPagamentoRealizado?: string; // Campo oficial do Schema Mongoose (Minuta.js)
+  dataPagamentoRealizado?: string;
   tipoPgto: string;
   valorBruto: number;
   valorRpa: number;
@@ -43,16 +46,56 @@ export default function MinutasCaminhoneiroPage() {
   const [mensagemStatus, setMensagemStatus] = useState('');
 
   const [resumo, setResumo] = useState({
-    totalBruto: 0,
-    totalRpa: 0,
-    totalDescontoAdicional: 0,
-    totalLiquido: 0,
+    totalLiquidoPendente: 0,
+    totalBrutoPendente: 0,
+    totalRpaPendente: 0,
+    totalLiquidoPago: 0,
+    totalBrutoPago: 0,
+    totalRpaPago: 0,
     qtdPendentes: 0,
     qtdPagas: 0,
     totalMinutas: 0,
   });
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+  const calcularResumoFinanceiro = (lista: MinutaMotorista[]) => {
+    let liqPendente = 0, brtPendente = 0, rpaPendente = 0, qPendente = 0;
+    let liqPago = 0, brtPago = 0, rpaPago = 0, qPago = 0;
+
+    lista.forEach((m) => {
+      const vBruto = m.valorBruto || 0;
+      const vRpa = m.valorRpa !== undefined ? m.valorRpa : (vBruto * 0.027);
+      
+      const vLiquido = m.statusPagamento === 'PAGO'
+        ? (m.valorFinalPago || m.valorLiquidoFinal || (vBruto - vRpa))
+        : (m.valorLiquidoFinal || (vBruto - vRpa));
+
+      if (m.statusPagamento === 'PAGO') {
+        liqPago += vLiquido;
+        brtPago += vBruto;
+        rpaPago += vRpa;
+        qPago++;
+      } else {
+        liqPendente += vLiquido;
+        brtPendente += vBruto;
+        rpaPendente += vRpa;
+        qPendente++;
+      }
+    });
+
+    setResumo({
+      totalLiquidoPendente: liqPendente,
+      totalBrutoPendente: brtPendente,
+      totalRpaPendente: rpaPendente,
+      totalLiquidoPago: liqPago,
+      totalBrutoPago: brtPago,
+      totalRpaPago: rpaPago,
+      qtdPendentes: qPendente,
+      qtdPagas: qPago,
+      totalMinutas: lista.length,
+    });
+  };
 
   const carregarMinutasDoMotorista = useCallback(async (placaBusca: string) => {
     if (!placaBusca || placaBusca.trim() === '') {
@@ -71,21 +114,14 @@ export default function MinutasCaminhoneiroPage() {
       const resultado = await resposta.json();
 
       if (resposta.ok && resultado.sucesso) {
-        setMinutas(resultado.dados || []);
-        setResumo(resultado.resumo || {
-          totalBruto: 0,
-          totalRpa: 0,
-          totalDescontoAdicional: 0,
-          totalLiquido: 0,
-          qtdPendentes: 0,
-          qtdPagas: 0,
-          totalMinutas: 0,
-        });
+        const dadosMinutas: MinutaMotorista[] = resultado.dados || [];
+        setMinutas(dadosMinutas);
+        calcularResumoFinanceiro(dadosMinutas);
 
-        if (!resultado.dados || resultado.dados.length === 0) {
+        if (dadosMinutas.length === 0) {
           setMensagemStatus(`ℹ️ Nenhuma minuta encontrada para a placa ${placaBusca}.`);
         } else {
-          setMensagemStatus(`✅ ${resultado.dados.length} viagem(ns) encontrada(s) para a placa ${placaBusca}.`);
+          setMensagemStatus(`✅ ${dadosMinutas.length} viagem(ns) encontrada(s) para a placa ${placaBusca}.`);
         }
       } else {
         setMensagemStatus(`⚠️ ${resultado.mensagem || 'Erro ao consultar a base de dados.'}`);
@@ -144,30 +180,17 @@ export default function MinutasCaminhoneiroPage() {
     return (val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
-  /**
-   * FORMATAÇÃO INTELIGENTE DE DATA (EVITA N/A E EVITA PERDA DE DIA NO FUSO)
-   */
   const formatarData = (dataTexto?: string) => {
     if (!dataTexto) return 'N/A';
-    
-    // Se a data já estiver formatada no padrão brasileiro (ex: "12/10/2026")
-    if (typeof dataTexto === 'string' && dataTexto.includes('/')) {
-      return dataTexto;
-    }
+    if (typeof dataTexto === 'string' && dataTexto.includes('/')) return dataTexto;
 
     try {
-      // Se vier como "YYYY-MM-DD" ou String ISO do MongoDB
       const partes = String(dataTexto).split('T')[0].split('-');
       if (partes.length === 3) {
-        const ano = partes[0];
-        const mes = partes[1];
-        const dia = partes[2];
-        return `${dia}/${mes}/${ano}`;
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
       }
-
       const d = new Date(dataTexto);
-      if (isNaN(d.getTime())) return dataTexto;
-      return d.toLocaleDateString('pt-BR');
+      return isNaN(d.getTime()) ? dataTexto : d.toLocaleDateString('pt-BR');
     } catch {
       return dataTexto;
     }
@@ -179,10 +202,80 @@ export default function MinutasCaminhoneiroPage() {
     return true;
   });
 
+  /**
+   * GERADOR DE RELATÓRIO PDF
+   */
+  const handleBaixarPDF = () => {
+    try {
+      const doc = new jsPDF();
+
+      // Cabeçalho
+      doc.setFontSize(18);
+      doc.setTextColor(15, 23, 42);
+      doc.text('PORTAL DO MOTORISTA - LOGÍSTICA', 14, 20);
+
+      doc.setFontSize(11);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Relatório de Extrato de Fretes - Veículo: ${placaSelecionada}`, 14, 28);
+      doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')} - ${new Date().toLocaleTimeString('pt-BR')}`, 14, 34);
+
+      // Resumo Financeiro no PDF
+      doc.setFillColor(248, 250, 252);
+      doc.rect(14, 40, 182, 24, 'F');
+
+      doc.setFontSize(10);
+      doc.setTextColor(180, 83, 9);
+      doc.text(`TOTAL A RECEBER: ${formatarMoeda(resumo.totalLiquidoPendente)} (${resumo.qtdPendentes} pendentes)`, 18, 48);
+
+      doc.setTextColor(22, 101, 52);
+      doc.text(`TOTAL JÁ RECEBIDO: ${formatarMoeda(resumo.totalLiquidoPago)} (${resumo.qtdPagas} pagas)`, 18, 56);
+
+      // Mapeamento dos Dados para a Tabela PDF
+      const dadosTabelaPDF = minutasFiltradas.map((m) => {
+        const vBruto = m.valorBruto || 0;
+        const vRpa = m.valorRpa !== undefined ? m.valorRpa : (vBruto * 0.027);
+
+        const vLiquido = m.statusPagamento === 'PAGO'
+          ? (m.valorFinalPago || m.valorLiquidoFinal || (vBruto - vRpa))
+          : (m.valorLiquidoFinal || (vBruto - vRpa));
+
+        const dataDoPagamento = m.dataPagamentoRealizado || m.dataPagamento;
+
+        return [
+          m.ref || 'N/D',
+          m.conteiner || 'N/D',
+          formatarData(m.dataOp),
+          `${m.terminalOrigem} -> ${m.terminalDestino}`,
+          formatarMoeda(vLiquido),
+          m.statusPagamento === 'PAGO' ? formatarData(dataDoPagamento) : 'Aguardando',
+          m.statusPagamento === 'PAGO' ? 'PAGO' : 'PENDENTE'
+        ];
+      });
+
+      // Renderiza Tabela usando jspdf-autotable
+      autoTable(doc, {
+        startY: 70,
+        head: [['REF', 'Contêiner', 'Data Op.', 'Rota', 'Valor Liq.', 'Data PGTO', 'Status']],
+        body: dadosTabelaPDF,
+        headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        styles: { fontSize: 8, cellPadding: 3 },
+      });
+
+      // Baixa o Ficheiro PDF
+      doc.save(`Extrato_Fretes_${placaSelecionada}_${new Date().toISOString().split('T')[0]}.pdf`);
+
+      setMensagemStatus('🎉 Relatório PDF transferido com sucesso!');
+      setTimeout(() => setMensagemStatus(''), 4000);
+    } catch (e) {
+      console.error('❌ Erro ao gerar PDF:', e);
+      setMensagemStatus('❌ Erro ao gerar o ficheiro PDF.');
+    }
+  };
+
   return (
     <div style={{ minHeight: '100dvh', backgroundColor: '#f8fafc', color: '#0f172a', overflowX: 'hidden' }}>
       
-      {/* REGRAS DE LAYOUT EXATAS PARA COMPUTADOR E CELULAR */}
       <style jsx global>{`
         .area-conteudo-pagina {
           padding: 1.25rem;
@@ -190,7 +283,6 @@ export default function MinutasCaminhoneiroPage() {
           transition: margin-left 0.2s ease, width 0.2s ease;
         }
 
-        /* COMPUTADOR (Ecrãs maiores que 768px) */
         @media (min-width: 769px) {
           .area-conteudo-pagina {
             margin-left: 260px !important;
@@ -199,7 +291,6 @@ export default function MinutasCaminhoneiroPage() {
           }
         }
 
-        /* CELULAR / TELEMÓVEL (Ecrãs até 768px) */
         @media (max-width: 768px) {
           .area-conteudo-pagina {
             margin-left: 0 !important;
@@ -210,13 +301,11 @@ export default function MinutasCaminhoneiroPage() {
         }
       `}</style>
 
-      {/* Componente Navbar / Sidebar */}
       <Navbar />
 
-      {/* ÁREA DE CONTEÚDO PRINCIPAL RESTRITA AO ESPAÇO ÚTIL DA TELA */}
       <main className="area-conteudo-pagina">
         
-        {/* CABEÇALHO */}
+        {/* CABEÇALHO COM BOTÃO DE IMPRESSÃO / PDF */}
         <header style={estilos.headerFlex}>
           <div>
             <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
@@ -227,39 +316,46 @@ export default function MinutasCaminhoneiroPage() {
             </p>
           </div>
 
-          {/* SELETOR DE PLACAS */}
-          <div style={estilos.caixaSeletor}>
-            <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#475569' }}>Veículo:</span>
-            
-            {minhasPlacas.length > 0 ? (
-              <select
-                value={placaSelecionada}
-                onChange={(e) => handleTrocarPlaca(e.target.value)}
-                style={estilos.selectPlaca}
-              >
-                {minhasPlacas.map((p, idx) => (
-                  <option key={idx} value={p}>
-                    🚚 {p}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={placaSelecionada}
-                onChange={(e) => setPlacaSelecionada(e.target.value.toUpperCase())}
-                placeholder="Placa"
-                style={estilos.inputPlaca}
-              />
-            )}
-
-            <button
-              onClick={() => carregarMinutasDoMotorista(placaSelecionada)}
-              disabled={carregando}
-              style={estilos.botaoAtualizar}
-            >
-              {carregando ? '⏳' : '🔍 Buscar'}
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* BOTÃO BAIXAR PDF */}
+            <button onClick={handleBaixarPDF} style={estilos.botaoPdf}>
+              📄 Baixar Extrato PDF
             </button>
+
+            {/* SELETOR DE PLACAS */}
+            <div style={estilos.caixaSeletor}>
+              <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#475569' }}>Veículo:</span>
+              
+              {minhasPlacas.length > 0 ? (
+                <select
+                  value={placaSelecionada}
+                  onChange={(e) => handleTrocarPlaca(e.target.value)}
+                  style={estilos.selectPlaca}
+                >
+                  {minhasPlacas.map((p, idx) => (
+                    <option key={idx} value={p}>
+                      🚚 {p}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={placaSelecionada}
+                  onChange={(e) => setPlacaSelecionada(e.target.value.toUpperCase())}
+                  placeholder="Placa"
+                  style={estilos.inputPlaca}
+                />
+              )}
+
+              <button
+                onClick={() => carregarMinutasDoMotorista(placaSelecionada)}
+                disabled={carregando}
+                style={estilos.botaoAtualizar}
+              >
+                {carregando ? '⏳' : '🔍 Buscar'}
+              </button>
+            </div>
           </div>
         </header>
 
@@ -282,30 +378,34 @@ export default function MinutasCaminhoneiroPage() {
 
         {/* CARDS DE RESUMO FINANCEIRO */}
         <section style={estilos.gridTotais}>
-          <div style={estilos.cardKpi}>
-            <span style={estilos.tituloKpi}>TOTAL LÍQUIDO A RECEBER</span>
-            <p style={{ ...estilos.valorKpi, color: '#16a34a' }}>
-              {formatarMoeda(resumo.totalLiquido)}
+          <div style={estilos.cardKpiPendente}>
+            <span style={estilos.tituloKpiPendente}>⏳ TOTAL A RECEBER (PENDENTES)</span>
+            <p style={{ ...estilos.valorKpi, color: '#d97706' }}>
+              {formatarMoeda(resumo.totalLiquidoPendente)}
             </p>
-            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>
-              Bruto: {formatarMoeda(resumo.totalBruto)} | RPA: -{formatarMoeda(resumo.totalRpa)}
+            <span style={{ fontSize: '0.75rem', color: '#78350f', fontWeight: '600' }}>
+              {resumo.qtdPendentes} viagem(ns) aguardando pagamento
+            </span>
+          </div>
+
+          <div style={estilos.cardKpiPago}>
+            <span style={estilos.tituloKpiPago}>✅ TOTAL JÁ RECEBIDO (PAGOS)</span>
+            <p style={{ ...estilos.valorKpi, color: '#16a34a' }}>
+              {formatarMoeda(resumo.totalLiquidoPago)}
+            </p>
+            <span style={{ fontSize: '0.75rem', color: '#14532d', fontWeight: '600' }}>
+              {resumo.qtdPagas} pagamento(s) efetuado(s)
             </span>
           </div>
 
           <div style={estilos.cardKpi}>
-            <span style={estilos.tituloKpi}>FRETES PENDENTES</span>
-            <p style={{ ...estilos.valorKpi, color: '#d97706' }}>
-              {resumo.qtdPendentes}
-            </p>
-            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>Aguardando pagamento</span>
-          </div>
-
-          <div style={estilos.cardKpi}>
-            <span style={estilos.tituloKpi}>FRETES PAGOS</span>
+            <span style={estilos.tituloKpi}>🚚 TOTAL DE VIAGENS</span>
             <p style={{ ...estilos.valorKpi, color: '#2563eb' }}>
-              {resumo.qtdPagas}
+              {resumo.totalMinutas}
             </p>
-            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>Pagamentos efetuados</span>
+            <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>
+              Pendentes: {resumo.qtdPendentes} | Pagas: {resumo.qtdPagas}
+            </span>
           </div>
         </section>
 
@@ -356,11 +456,12 @@ export default function MinutasCaminhoneiroPage() {
                 ) : (
                   minutasFiltradas.map((m) => {
                     const vBruto = m.valorBruto || 0;
-                    const vRpa = m.valorRpa || (vBruto * 0.027);
-                    const descAdd = m.descontoAdicionalAplicado || 0;
-                    const vLiquido = m.valorFinalPago || m.valorLiquidoFinal || (vBruto - vRpa - descAdd);
+                    const vRpa = m.valorRpa !== undefined ? m.valorRpa : (vBruto * 0.027);
 
-                    // BUSCA O CAMPO OFICIAL DA DATA DO PAGAMENTO DO MONGODB (Minuta.js)
+                    const vLiquido = m.statusPagamento === 'PAGO'
+                      ? (m.valorFinalPago || m.valorLiquidoFinal || (vBruto - vRpa))
+                      : (m.valorLiquidoFinal || (vBruto - vRpa));
+
                     const dataDoPagamento = m.dataPagamentoRealizado || m.dataPagamento;
 
                     return (
@@ -377,11 +478,10 @@ export default function MinutasCaminhoneiroPage() {
                           {m.terminalOrigem} ➔ {m.terminalDestino}
                         </td>
                         <td style={estilos.td}>{m.tipoPgto}</td>
-                        <td style={{ ...estilos.td, fontWeight: '800', color: '#16a34a' }}>
+                        <td style={{ ...estilos.td, fontWeight: '800', color: m.statusPagamento === 'PAGO' ? '#16a34a' : '#d97706' }}>
                           {formatarMoeda(vLiquido)}
                         </td>
                         
-                        {/* COLUNA DATA PGTO CORRIGIDA */}
                         <td style={{ ...estilos.td, fontWeight: '700', color: m.statusPagamento === 'PAGO' ? '#16a34a' : '#64748b' }}>
                           {m.statusPagamento === 'PAGO' ? `✅ ${formatarData(dataDoPagamento)}` : '⏳ Aguardando'}
                         </td>
@@ -434,11 +534,8 @@ const estilos: { [key: string]: React.CSSProperties } = {
     borderRadius: '10px',
     border: '1px solid #cbd5e1',
     boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
-    width: '100%',
-    maxWidth: '360px',
   },
   selectPlaca: {
-    flex: 1,
     minHeight: '40px',
     padding: '0.4rem 0.5rem',
     borderRadius: '6px',
@@ -450,13 +547,13 @@ const estilos: { [key: string]: React.CSSProperties } = {
     outline: 'none',
   },
   inputPlaca: {
-    flex: 1,
     minHeight: '40px',
     padding: '0.4rem 0.5rem',
     borderRadius: '6px',
     border: '1px solid #cbd5e1',
     fontWeight: '800',
     textAlign: 'center',
+    width: '100px',
   },
   botaoAtualizar: {
     minHeight: '40px',
@@ -468,6 +565,18 @@ const estilos: { [key: string]: React.CSSProperties } = {
     fontWeight: '800',
     cursor: 'pointer',
     fontSize: '0.85rem',
+  },
+  botaoPdf: {
+    minHeight: '40px',
+    backgroundColor: '#059669',
+    color: '#ffffff',
+    border: 'none',
+    padding: '0.45rem 0.85rem',
+    borderRadius: '10px',
+    fontWeight: '800',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    boxShadow: '0 2px 4px rgba(5, 150, 105, 0.2)',
   },
   gridTotais: { 
     display: 'grid', 
@@ -482,7 +591,23 @@ const estilos: { [key: string]: React.CSSProperties } = {
     border: '1px solid #e2e8f0', 
     boxShadow: '0 2px 4px rgba(0,0,0,0.03)' 
   },
+  cardKpiPendente: { 
+    backgroundColor: '#fffbeb', 
+    padding: '1rem', 
+    borderRadius: '12px', 
+    border: '1px solid #fde68a', 
+    boxShadow: '0 2px 4px rgba(0,0,0,0.03)' 
+  },
+  cardKpiPago: { 
+    backgroundColor: '#f0fdf4', 
+    padding: '1rem', 
+    borderRadius: '12px', 
+    border: '1px solid #bbf7d0', 
+    boxShadow: '0 2px 4px rgba(0,0,0,0.03)' 
+  },
   tituloKpi: { fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' },
+  tituloKpiPendente: { fontSize: '0.75rem', fontWeight: '800', color: '#b45309', textTransform: 'uppercase' },
+  tituloKpiPago: { fontSize: '0.75rem', fontWeight: '800', color: '#166534', textTransform: 'uppercase' },
   valorKpi: { margin: '0.3rem 0', fontSize: '1.35rem', fontWeight: '800' },
   containerAbas: { display: 'flex', gap: '0.35rem', marginBottom: '1rem', overflowX: 'auto' },
   botaoAba: { 
