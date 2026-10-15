@@ -2,11 +2,11 @@
 
 /**
  * ============================================================================
- * PORTAL DO CAMINHONEIRO - TELA DE CADASTRO (CORRIGIDA E CONECTADA À API)
+ * PORTAL DO CAMINHONEIRO - TELA DE CADASTRO (RESPONSIVA PARA TELEMÓVEL E WEB)
  * Localização: caminhoneiro/app/cadastro/page.tsx
- * Tecnologias: Next.js (App Router), React, TypeScript, CSS-in-JS Inline
- * Descrição: Formulário de registo de motoristas com higienização de CPF,
- *            tratamento de erros de rede e compatibilidade entre Web e Local.
+ * Tecnologias: Next.js (App Router), React, TypeScript, Styled JSX
+ * Descrição: Formulário de registo adaptado com layout responsivo de 1 coluna
+ *            em dispositivos móveis e 2 colunas em ecrãs maiores.
  * ============================================================================
  */
 
@@ -31,7 +31,7 @@ export default function CadastroCaminhoneiroPage() {
   const [carregando, setCarregando] = useState(false);
   const [mensagemStatus, setMensagemStatus] = useState('');
 
-  // ENDEREÇO DA API BACKEND (Puxa da variável de ambiente ou usa localhost como padrão)
+  // ENDEREÇO DA API BACKEND
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
   // Envio do formulário de registo para o backend
@@ -68,7 +68,6 @@ export default function CadastroCaminhoneiroPage() {
     };
 
     try {
-      // Formata a URL removendo barras no final para evitar erros de endpoint
       const baseUrl = apiUrl.replace(/\/$/, '');
       const endpoint = `${baseUrl}/caminhoneiros/registro`;
 
@@ -89,7 +88,6 @@ export default function CadastroCaminhoneiroPage() {
 
       setMensagemStatus(`🎉 ${resultado.mensagem}`);
 
-      // Redireciona para a Tela de Login Principal (/) após o cadastro
       setTimeout(() => {
         router.push('/');
       }, 1500);
@@ -109,14 +107,46 @@ export default function CadastroCaminhoneiroPage() {
   return (
     <div style={estilos.containerGeral}>
       
+      {/* REGRAS RESPONSIVAS DE LAYOUT PARA DISPOSITIVOS MÓVEIS */}
+      <style jsx global>{`
+        * {
+          box-sizing: border-box;
+        }
+
+        /* AJUSTES PARA TELEMÓVEL / CELULAR (Ecrãs até 640px) */
+        @media (max-width: 640px) {
+          .card-elevado-cadastro {
+            padding: 1.5rem 1rem !important;
+            border-radius: 16px !important;
+          }
+
+          .grid-form-cadastro {
+            grid-template-columns: 1fr !important;
+            gap: 0.85rem !important;
+          }
+
+          .campo-span-2 {
+            grid-column: span 1 !important;
+          }
+
+          .titulo-cadastro {
+            font-size: 1.35rem !important;
+          }
+
+          .subtitulo-cadastro {
+            font-size: 0.8rem !important;
+          }
+        }
+      `}</style>
+
       {/* CARD PRINCIPAL ELEVADO */}
-      <div style={estilos.cardElevado}>
+      <div className="card-elevado-cadastro" style={estilos.cardElevado}>
         
         {/* CABEÇALHO DO CARD */}
         <div style={estilos.cabecalho}>
           <div style={estilos.badgePortal}>NOVO REGISTO • MOTORISTA</div>
-          <h1 style={estilos.tituloModal}>Crie a sua Conta</h1>
-          <p style={estilos.subtituloModal}>
+          <h1 className="titulo-cadastro" style={estilos.tituloModal}>Crie a sua Conta</h1>
+          <p className="subtitulo-cadastro" style={estilos.subtituloModal}>
             Preencha os seus dados para consultar minutas e extratos de frete
           </p>
         </div>
@@ -134,12 +164,12 @@ export default function CadastroCaminhoneiroPage() {
         )}
 
         {/* FORMULÁRIO DE CADASTRO */}
-        <form onSubmit={handleSubmit} style={{ marginTop: '1.5rem' }}>
+        <form onSubmit={handleSubmit} style={{ marginTop: '1.25rem' }}>
           
-          <div style={estilos.gridForm}>
+          <div className="grid-form-cadastro" style={estilos.gridForm}>
             
             {/* NOME COMPLETO */}
-            <div style={{ gridColumn: 'span 2' }}>
+            <div className="campo-span-2" style={{ gridColumn: 'span 2' }}>
               <label style={estilos.label}>Nome Completo *</label>
               <input
                 type="text"
@@ -201,7 +231,7 @@ export default function CadastroCaminhoneiroPage() {
             </div>
 
             {/* CHAVE PIX */}
-            <div style={{ gridColumn: 'span 2' }}>
+            <div className="campo-span-2" style={{ gridColumn: 'span 2' }}>
               <label style={estilos.label}>Chave PIX / Dados Bancários</label>
               <input
                 type="text"
@@ -213,24 +243,24 @@ export default function CadastroCaminhoneiroPage() {
             </div>
 
             {/* PLACAS DOS CAMINHÕES */}
-            <div style={{ gridColumn: 'span 2' }}>
-              <label style={estilos.label}>Placas dos Caminhões (Separe por vírgula se tiver mais de um) *</label>
+            <div className="campo-span-2" style={{ gridColumn: 'span 2' }}>
+              <label style={estilos.label}>Placas dos Caminhões *</label>
               <input
                 type="text"
                 required
-                placeholder="Informe a placa ou placas separadas por vírgula"
+                placeholder="Ex: ABC1D23, XYZ9876 (Separe por vírgula)"
                 value={placasTexto}
                 onChange={(e) => setPlacasTexto(e.target.value)}
                 style={estilos.inputSofisticado}
               />
               <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '0.35rem' }}>
-                💡 As minutas emitidas para estas placas serão vinculadas automaticamente ao seu painel.
+                💡 As minutas destas placas serão associadas automaticamente.
               </span>
             </div>
 
             {/* PALAVRA-PASSE (SENHA) */}
-            <div style={{ gridColumn: 'span 2' }}>
-              <label style={estilos.label}>Crie uma Palavra-Passe (Senha) para Login *</label>
+            <div className="campo-span-2" style={{ gridColumn: 'span 2' }}>
+              <label style={estilos.label}>Senha *</label>
               <input
                 type="password"
                 required
@@ -265,21 +295,21 @@ export default function CadastroCaminhoneiroPage() {
 
 const estilos: { [key: string]: React.CSSProperties } = {
   containerGeral: {
-    minHeight: '100vh',
-    width: '100vw',
+    minHeight: '100dvh',
+    width: '100%',
     backgroundColor: '#020617',
     backgroundImage: 'radial-gradient(circle at 50% 0%, #1e1b4b 0%, #020617 70%)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '2.5rem 1.5rem',
+    padding: '1rem',
     fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   },
   cardElevado: {
     backgroundColor: '#ffffff',
-    padding: '3rem 2.5rem',
+    padding: '2.5rem 2rem',
     borderRadius: '24px',
-    maxWidth: '680px',
+    maxWidth: '640px',
     width: '100%',
     boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1)',
   },
@@ -321,13 +351,13 @@ const estilos: { [key: string]: React.CSSProperties } = {
   },
   gridForm: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gridTemplateColumns: 'repeat(2, 1fr)',
     gap: '1rem',
   },
   label: {
     display: 'block',
     marginBottom: '0.35rem',
-    fontSize: '0.8rem',
+    fontSize: '0.75rem',
     fontWeight: '700',
     color: '#1e293b',
     textTransform: 'uppercase',
@@ -344,11 +374,10 @@ const estilos: { [key: string]: React.CSSProperties } = {
     fontWeight: '600',
     outline: 'none',
     boxSizing: 'border-box',
-    transition: 'all 0.2s ease-in-out',
   },
   botaoPrincipal: {
     width: '100%',
-    marginTop: '1.75rem',
+    marginTop: '1.5rem',
     padding: '0.9rem',
     backgroundColor: '#2563eb',
     color: '#ffffff',
@@ -361,8 +390,8 @@ const estilos: { [key: string]: React.CSSProperties } = {
   },
   rodapeCard: {
     textAlign: 'center',
-    marginTop: '1.75rem',
-    paddingTop: '1.25rem',
+    marginTop: '1.5rem',
+    paddingTop: '1rem',
     borderTop: '1px solid #f1f5f9',
     fontSize: '0.875rem',
   },

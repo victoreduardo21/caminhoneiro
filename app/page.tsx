@@ -120,7 +120,7 @@ export default function LoginCaminhoneiroPage() {
         {/* Formulário de Autenticação */}
         <form onSubmit={handleLogin} style={{ marginTop: '1.5rem' }}>
           <div style={{ marginBottom: '1.25rem' }}>
-            <label style={estilos.label}>CPF do Motorista *</label>
+            <label style={estilos.label}>CPF *</label>
             <input
               type="text"
               required
@@ -132,7 +132,7 @@ export default function LoginCaminhoneiroPage() {
           </div>
 
           <div style={{ marginBottom: '1.75rem' }}>
-            <label style={estilos.label}>Palavra-Passe (Senha) *</label>
+            <label style={estilos.label}>Senha *</label>
             <input
               type="password"
               required
