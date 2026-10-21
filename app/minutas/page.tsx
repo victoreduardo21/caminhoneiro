@@ -2,12 +2,10 @@
 
 /**
  * ============================================================================
- * TELA: MINUTAS DO CAMINHONEIRO (COM GERADOR E DOWNLOAD DE PDF)
+ * TELA: MINUTAS DO CAMINHONEIRO (TRATAMENTO DE RESPOSTAS E DADOS DA API)
  * Localização no Projeto: caminhoneiro/app/minutas/page.tsx
  * Rota no Navegador: /minutas
  * Tecnologias: Next.js (App Router), React, TypeScript, jsPDF
- * Descrição: Exibe o extrato financeiro do motorista e permite baixar um
- *            relatório oficial em PDF para arquivamento definitivo.
  * ============================================================================
  */
 
@@ -97,6 +95,9 @@ export default function MinutasCaminhoneiroPage() {
     });
   };
 
+  /**
+   * REQUISIÇÃO PROTEGIDA
+   */
   const carregarMinutasDoMotorista = useCallback(async (placaBusca: string) => {
     if (!placaBusca || placaBusca.trim() === '') {
       setMensagemStatus('⚠️ Nenhuma placa selecionada para consulta.');
@@ -111,6 +112,12 @@ export default function MinutasCaminhoneiroPage() {
       const endpoint = `${baseUrl}/importacao/minhas-minutas?placa=${encodeURIComponent(placaBusca.trim())}`;
 
       const resposta = await fetch(endpoint);
+      const contentType = resposta.headers.get('content-type');
+
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error(`A API não retornou um JSON válido. Verifique se o servidor backend Node.js está em execução.`);
+      }
+
       const resultado = await resposta.json();
 
       if (resposta.ok && resultado.sucesso) {
@@ -127,12 +134,14 @@ export default function MinutasCaminhoneiroPage() {
         setMensagemStatus(`⚠️ ${resultado.mensagem || 'Erro ao consultar a base de dados.'}`);
       }
     } catch (erro: any) {
-      console.error('❌ Erro na conexão com a API:', erro);
+      console.error('❌ Erro na conexão com a API:', erro.message);
+      setMinutas([]);
+      calcularResumoFinanceiro([]);
 
-      if (erro.message === 'Failed to fetch') {
-        setMensagemStatus(`❌ Não foi possível conectar ao servidor (${apiUrl}). Verifique sua conexão ou status da API.`);
+      if (erro.message && erro.message.includes('Failed to fetch')) {
+        setMensagemStatus(`❌ Não foi possível conectar ao servidor (${apiUrl}). Verifique se o backend está ligado.`);
       } else {
-        setMensagemStatus(`❌ ${erro.message || 'Falha ao conectar ao servidor backend.'}`);
+        setMensagemStatus(`❌ ${erro.message || 'Erro ao conectar à API.'}`);
       }
     } finally {
       setCarregando(false);
@@ -202,14 +211,10 @@ export default function MinutasCaminhoneiroPage() {
     return true;
   });
 
-  /**
-   * GERADOR DE RELATÓRIO PDF
-   */
   const handleBaixarPDF = () => {
     try {
       const doc = new jsPDF();
 
-      // Cabeçalho
       doc.setFontSize(18);
       doc.setTextColor(15, 23, 42);
       doc.text('PORTAL DO MOTORISTA - LOGÍSTICA', 14, 20);
@@ -219,7 +224,6 @@ export default function MinutasCaminhoneiroPage() {
       doc.text(`Relatório de Extrato de Fretes - Veículo: ${placaSelecionada}`, 14, 28);
       doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')} - ${new Date().toLocaleTimeString('pt-BR')}`, 14, 34);
 
-      // Resumo Financeiro no PDF
       doc.setFillColor(248, 250, 252);
       doc.rect(14, 40, 182, 24, 'F');
 
@@ -230,7 +234,6 @@ export default function MinutasCaminhoneiroPage() {
       doc.setTextColor(22, 101, 52);
       doc.text(`TOTAL JÁ RECEBIDO: ${formatarMoeda(resumo.totalLiquidoPago)} (${resumo.qtdPagas} pagas)`, 18, 56);
 
-      // Mapeamento dos Dados para a Tabela PDF
       const dadosTabelaPDF = minutasFiltradas.map((m) => {
         const vBruto = m.valorBruto || 0;
         const vRpa = m.valorRpa !== undefined ? m.valorRpa : (vBruto * 0.027);
@@ -252,7 +255,6 @@ export default function MinutasCaminhoneiroPage() {
         ];
       });
 
-      // Renderiza Tabela usando jspdf-autotable
       autoTable(doc, {
         startY: 70,
         head: [['REF', 'Contêiner', 'Data Op.', 'Rota', 'Valor Liq.', 'Data PGTO', 'Status']],
@@ -262,7 +264,6 @@ export default function MinutasCaminhoneiroPage() {
         styles: { fontSize: 8, cellPadding: 3 },
       });
 
-      // Baixa o Ficheiro PDF
       doc.save(`Extrato_Fretes_${placaSelecionada}_${new Date().toISOString().split('T')[0]}.pdf`);
 
       setMensagemStatus('🎉 Relatório PDF transferido com sucesso!');
@@ -304,8 +305,6 @@ export default function MinutasCaminhoneiroPage() {
       <Navbar />
 
       <main className="area-conteudo-pagina">
-        
-        {/* CABEÇALHO COM BOTÃO DE IMPRESSÃO / PDF */}
         <header style={estilos.headerFlex}>
           <div>
             <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: '#0f172a', margin: 0 }}>
@@ -317,12 +316,10 @@ export default function MinutasCaminhoneiroPage() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            {/* BOTÃO BAIXAR PDF */}
             <button onClick={handleBaixarPDF} style={estilos.botaoPdf}>
               📄 Baixar Extrato PDF
             </button>
 
-            {/* SELETOR DE PLACAS */}
             <div style={estilos.caixaSeletor}>
               <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#475569' }}>Veículo:</span>
               
@@ -359,7 +356,6 @@ export default function MinutasCaminhoneiroPage() {
           </div>
         </header>
 
-        {/* MENSAGEM DE STATUS */}
         {mensagemStatus && (
           <div style={{
             padding: '0.85rem',
@@ -376,7 +372,6 @@ export default function MinutasCaminhoneiroPage() {
           </div>
         )}
 
-        {/* CARDS DE RESUMO FINANCEIRO */}
         <section style={estilos.gridTotais}>
           <div style={estilos.cardKpiPendente}>
             <span style={estilos.tituloKpiPendente}>⏳ TOTAL A RECEBER (PENDENTES)</span>
@@ -409,7 +404,6 @@ export default function MinutasCaminhoneiroPage() {
           </div>
         </section>
 
-        {/* ABAS DE FILTRO */}
         <div style={estilos.containerAbas}>
           <button
             onClick={() => setAbaAtiva('TODAS')}
@@ -431,7 +425,6 @@ export default function MinutasCaminhoneiroPage() {
           </button>
         </div>
 
-        {/* TABELA DE MINUTAS */}
         <section style={estilos.cardBoxTabela}>
           <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <table style={estilos.tabela}>
@@ -514,7 +507,6 @@ export default function MinutasCaminhoneiroPage() {
   );
 }
 
-// Estilos Responsivos
 const estilos: { [key: string]: React.CSSProperties } = {
   headerFlex: {
     marginBottom: '1.25rem',
