@@ -2,10 +2,11 @@
 
 /**
  * ============================================================================
- * TELA: MINUTAS DO CAMINHONEIRO (TRATAMENTO DE RESPOSTAS E DADOS DA API)
+ * TELA: MINUTAS DO CAMINHONEIRO (SUPORTE MULTI-DISPOSITIVO E IP DINÂMICO)
  * Localização no Projeto: caminhoneiro/app/minutas/page.tsx
  * Rota no Navegador: /minutas
  * Tecnologias: Next.js (App Router), React, TypeScript, jsPDF
+ * Descrição: Resolve dinamicamente o IP da API para acesso via rede local ou telemóvel.
  * ============================================================================
  */
 
@@ -55,7 +56,23 @@ export default function MinutasCaminhoneiroPage() {
     totalMinutas: 0,
   });
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  /**
+   * OBTÉM A URL CORRETA DA API DE FORMA DINÂMICA
+   */
+  const obterUrlApi = useCallback(() => {
+    const envUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (envUrl) return envUrl.replace(/\/$/, '');
+
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      // Se estiver a aceder por um IP da rede local, usa esse mesmo IP na porta 3001
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+        return `http://${hostname}:3001`;
+      }
+    }
+
+    return 'http://localhost:3001';
+  }, []);
 
   const calcularResumoFinanceiro = (lista: MinutaMotorista[]) => {
     let liqPendente = 0, brtPendente = 0, rpaPendente = 0, qPendente = 0;
@@ -96,7 +113,7 @@ export default function MinutasCaminhoneiroPage() {
   };
 
   /**
-   * REQUISIÇÃO PROTEGIDA
+   * REQUISIÇÃO ADAPTADA À REDE
    */
   const carregarMinutasDoMotorista = useCallback(async (placaBusca: string) => {
     if (!placaBusca || placaBusca.trim() === '') {
@@ -108,14 +125,14 @@ export default function MinutasCaminhoneiroPage() {
     setMensagemStatus(`⏳ A consultar fretes para o veículo ${placaBusca}...`);
 
     try {
-      const baseUrl = apiUrl.replace(/\/$/, '');
+      const baseUrl = obterUrlApi();
       const endpoint = `${baseUrl}/importacao/minhas-minutas?placa=${encodeURIComponent(placaBusca.trim())}`;
 
       const resposta = await fetch(endpoint);
       const contentType = resposta.headers.get('content-type');
 
       if (!contentType || !contentType.includes('application/json')) {
-        throw new Error(`A API não retornou um JSON válido. Verifique se o servidor backend Node.js está em execução.`);
+        throw new Error(`O servidor na URL ${baseUrl} não retornou um JSON. Verifique se o backend Node.js está a rodar e acessível na rede.`);
       }
 
       const resultado = await resposta.json();
@@ -139,14 +156,14 @@ export default function MinutasCaminhoneiroPage() {
       calcularResumoFinanceiro([]);
 
       if (erro.message && erro.message.includes('Failed to fetch')) {
-        setMensagemStatus(`❌ Não foi possível conectar ao servidor (${apiUrl}). Verifique se o backend está ligado.`);
+        setMensagemStatus(`❌ Não foi possível conectar à API. Verifique se o servidor backend está a rodar na mesma rede.`);
       } else {
         setMensagemStatus(`❌ ${erro.message || 'Erro ao conectar à API.'}`);
       }
     } finally {
       setCarregando(false);
     }
-  }, [apiUrl]);
+  }, [obterUrlApi]);
 
   useEffect(() => {
     const dadosSalvos = localStorage.getItem('motorista') || localStorage.getItem('usuario') || localStorage.getItem('user');
