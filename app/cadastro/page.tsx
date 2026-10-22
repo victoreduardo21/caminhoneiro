@@ -2,11 +2,11 @@
 
 /**
  * ============================================================================
- * PORTAL DO CAMINHONEIRO - TELA DE CADASTRO (RESPONSIVA PARA TELEMÓVEL E WEB)
+ * PORTAL DO CAMINHONEIRO - TELA DE CADASTRO (MÁSCARA E VALIDAÇÃO DE DATA)
  * Localização: caminhoneiro/app/cadastro/page.tsx
  * Tecnologias: Next.js (App Router), React, TypeScript, Styled JSX
- * Descrição: Formulário de registo adaptado com layout responsivo de 1 coluna
- *            em dispositivos móveis e 2 colunas em ecrãs maiores.
+ * Descrição: Formulário de registo com máscara e validação estrita para
+ *            Data de Nascimento no formato DD/MM/AAAA.
  * ============================================================================
  */
 
@@ -34,12 +34,41 @@ export default function CadastroCaminhoneiroPage() {
   // ENDEREÇO DA API BACKEND
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+  /**
+   * MÁSCARA AUTOMÁTICA OBRIGATÓRIA PARA DATA DE NASCIMENTO (DD/MM/AAAA)
+   */
+  const handleDataNascimentoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Remove qualquer caractere que não seja número
+    let valor = e.target.value.replace(/\D/g, '');
+
+    // Limita a 8 dígitos numéricos (DDMMAAAA)
+    if (valor.length > 8) {
+      valor = valor.slice(0, 8);
+    }
+
+    // Intercala as barras automaticamente
+    if (valor.length > 4) {
+      valor = `${valor.slice(0, 2)}/${valor.slice(2, 4)}/${valor.slice(4)}`;
+    } else if (valor.length > 2) {
+      valor = `${valor.slice(0, 2)}/${valor.slice(2)}`;
+    }
+
+    setDataNascimento(valor);
+  };
+
   // Envio do formulário de registo para o backend
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!nome || !cpf || !senha || !placasTexto) {
       setMensagemStatus('⚠️ Preencha os campos obrigatórios (Nome, CPF, Placas e Senha).');
+      return;
+    }
+
+    // Validação estrita do formato de Data de Nascimento (DD/MM/AAAA)
+    const dataLimpa = dataNascimento.trim();
+    if (dataLimpa && !/^\d{2}\/\d{2}\/\d{4}$/.test(dataLimpa)) {
+      setMensagemStatus('⚠️ A Data de Nascimento precisa ser no formato completo DD/MM/AAAA (ex: 01/09/2002).');
       return;
     }
 
@@ -61,7 +90,7 @@ export default function CadastroCaminhoneiroPage() {
       whatsapp: whatsapp || contato,
       contato: contato || whatsapp,
       pis: pis.trim(),
-      dataNascimento: dataNascimento.trim(),
+      dataNascimento: dataLimpa,
       pix: pix.trim(),
       placas: listaPlacas,
       senha,
@@ -155,9 +184,9 @@ export default function CadastroCaminhoneiroPage() {
         {mensagemStatus && (
           <div style={{
             ...estilos.caixaStatus,
-            backgroundColor: mensagemStatus.includes('❌') ? '#fef2f2' : mensagemStatus.includes('🎉') ? '#f0fdf4' : '#eff6ff',
-            color: mensagemStatus.includes('❌') ? '#991b1b' : mensagemStatus.includes('🎉') ? '#166534' : '#1e40af',
-            borderColor: mensagemStatus.includes('❌') ? '#fecaca' : mensagemStatus.includes('🎉') ? '#bbf7d0' : '#bfdbfe',
+            backgroundColor: mensagemStatus.includes('❌') || mensagemStatus.includes('⚠️') ? '#fef2f2' : mensagemStatus.includes('🎉') ? '#f0fdf4' : '#eff6ff',
+            color: mensagemStatus.includes('❌') || mensagemStatus.includes('⚠️') ? '#991b1b' : mensagemStatus.includes('🎉') ? '#166534' : '#1e40af',
+            borderColor: mensagemStatus.includes('❌') || mensagemStatus.includes('⚠️') ? '#fecaca' : mensagemStatus.includes('🎉') ? '#bbf7d0' : '#bfdbfe',
           }}>
             {mensagemStatus}
           </div>
@@ -218,14 +247,15 @@ export default function CadastroCaminhoneiroPage() {
               />
             </div>
 
-            {/* DATA DE NASCIMENTO */}
+            {/* DATA DE NASCIMENTO (MÁSCARA DD/MM/AAAA APLICADA) */}
             <div>
               <label style={estilos.label}>Data de Nascimento</label>
               <input
                 type="text"
+                maxLength={10}
                 placeholder="DD/MM/AAAA"
                 value={dataNascimento}
-                onChange={(e) => setDataNascimento(e.target.value)}
+                onChange={handleDataNascimentoChange}
                 style={estilos.inputSofisticado}
               />
             </div>
@@ -258,7 +288,7 @@ export default function CadastroCaminhoneiroPage() {
               </span>
             </div>
 
-            {/* PALAVRA-PASSE (SENHA) */}
+            {/* SENHA */}
             <div className="campo-span-2" style={{ gridColumn: 'span 2' }}>
               <label style={estilos.label}>Senha *</label>
               <input
