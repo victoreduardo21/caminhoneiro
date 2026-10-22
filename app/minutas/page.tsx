@@ -2,11 +2,12 @@
 
 /**
  * ============================================================================
- * TELA: MINUTAS DO CAMINHONEIRO (SUPORTE MULTI-DISPOSITIVO E IP DINÂMICO)
+ * TELA: MINUTAS DO CAMINHONEIRO (CARDS COM VALOR BRUTO PRIMEIRO E LÍQUIDO A RECEBER)
  * Localização no Projeto: caminhoneiro/app/minutas/page.tsx
  * Rota no Navegador: /minutas
  * Tecnologias: Next.js (App Router), React, TypeScript, jsPDF
- * Descrição: Resolve dinamicamente o IP da API para acesso via rede local ou telemóvel.
+ * Descrição: Exibe nos cards de topo o Valor Bruto primeiro, seguido pelo
+ *            Líquido a Receber / Líquido Já Recebido.
  * ============================================================================
  */
 
@@ -28,6 +29,7 @@ interface MinutaMotorista {
   tipoPgto: string;
   valorBruto: number;
   valorRpa: number;
+  descontoDiesel?: number;
   descontoAdicionalAplicado?: number;
   valorLiquidoFinal: number;
   valorFinalPago?: number;
@@ -47,17 +49,17 @@ export default function MinutasCaminhoneiroPage() {
   const [resumo, setResumo] = useState({
     totalLiquidoPendente: 0,
     totalBrutoPendente: 0,
-    totalRpaPendente: 0,
+    totalDieselPendente: 0,
     totalLiquidoPago: 0,
     totalBrutoPago: 0,
-    totalRpaPago: 0,
+    totalDieselPago: 0,
     qtdPendentes: 0,
     qtdPagas: 0,
     totalMinutas: 0,
   });
 
   /**
-   * OBTÉM A URL CORRETA DA API DE FORMA DINÂMICA
+   * RESOLUÇÃO DINÂMICA DA URL DA API
    */
   const obterUrlApi = useCallback(() => {
     const envUrl = process.env.NEXT_PUBLIC_API_URL;
@@ -65,7 +67,6 @@ export default function MinutasCaminhoneiroPage() {
 
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
-      // Se estiver a aceder por um IP da rede local, usa esse mesmo IP na porta 3001
       if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
         return `http://${hostname}:3001`;
       }
@@ -74,27 +75,31 @@ export default function MinutasCaminhoneiroPage() {
     return 'http://localhost:3001';
   }, []);
 
+  /**
+   * CÁLCULO DO RESUMO FINANCEIRO DOS CARDS
+   */
   const calcularResumoFinanceiro = (lista: MinutaMotorista[]) => {
-    let liqPendente = 0, brtPendente = 0, rpaPendente = 0, qPendente = 0;
-    let liqPago = 0, brtPago = 0, rpaPago = 0, qPago = 0;
+    let liqPendente = 0, brtPendente = 0, dslPendente = 0, qPendente = 0;
+    let liqPago = 0, brtPago = 0, dslPago = 0, qPago = 0;
 
     lista.forEach((m) => {
-      const vBruto = m.valorBruto || 0;
-      const vRpa = m.valorRpa !== undefined ? m.valorRpa : (vBruto * 0.027);
+      const vBruto = Number(m.valorBruto || 0);
+      const vRpa = m.valorRpa !== undefined ? Number(m.valorRpa) : (vBruto * 0.027);
+      const vDiesel = Number(m.descontoDiesel || 0);
       
       const vLiquido = m.statusPagamento === 'PAGO'
-        ? (m.valorFinalPago || m.valorLiquidoFinal || (vBruto - vRpa))
-        : (m.valorLiquidoFinal || (vBruto - vRpa));
+        ? Number(m.valorFinalPago || m.valorLiquidoFinal || (vBruto - vRpa - vDiesel))
+        : Number(m.valorLiquidoFinal || (vBruto - vRpa - vDiesel));
 
       if (m.statusPagamento === 'PAGO') {
         liqPago += vLiquido;
         brtPago += vBruto;
-        rpaPago += vRpa;
+        dslPago += vDiesel;
         qPago++;
       } else {
         liqPendente += vLiquido;
         brtPendente += vBruto;
-        rpaPendente += vRpa;
+        dslPendente += vDiesel;
         qPendente++;
       }
     });
@@ -102,10 +107,10 @@ export default function MinutasCaminhoneiroPage() {
     setResumo({
       totalLiquidoPendente: liqPendente,
       totalBrutoPendente: brtPendente,
-      totalRpaPendente: rpaPendente,
+      totalDieselPendente: dslPendente,
       totalLiquidoPago: liqPago,
       totalBrutoPago: brtPago,
-      totalRpaPago: rpaPago,
+      totalDieselPago: dslPago,
       qtdPendentes: qPendente,
       qtdPagas: qPago,
       totalMinutas: lista.length,
@@ -113,7 +118,7 @@ export default function MinutasCaminhoneiroPage() {
   };
 
   /**
-   * REQUISIÇÃO ADAPTADA À REDE
+   * BUSCA DAS MINUTAS NO BACKEND
    */
   const carregarMinutasDoMotorista = useCallback(async (placaBusca: string) => {
     if (!placaBusca || placaBusca.trim() === '') {
@@ -132,7 +137,7 @@ export default function MinutasCaminhoneiroPage() {
       const contentType = resposta.headers.get('content-type');
 
       if (!contentType || !contentType.includes('application/json')) {
-        throw new Error(`O servidor na URL ${baseUrl} não retornou um JSON. Verifique se o backend Node.js está a rodar e acessível na rede.`);
+        throw new Error(`A API não retornou um JSON válido. Verifique se o backend está a rodar na porta 3001.`);
       }
 
       const resultado = await resposta.json();
@@ -156,7 +161,7 @@ export default function MinutasCaminhoneiroPage() {
       calcularResumoFinanceiro([]);
 
       if (erro.message && erro.message.includes('Failed to fetch')) {
-        setMensagemStatus(`❌ Não foi possível conectar à API. Verifique se o servidor backend está a rodar na mesma rede.`);
+        setMensagemStatus(`❌ Não foi possível conectar ao servidor backend. Verifique se a API está ligada.`);
       } else {
         setMensagemStatus(`❌ ${erro.message || 'Erro ao conectar à API.'}`);
       }
@@ -172,7 +177,6 @@ export default function MinutasCaminhoneiroPage() {
     if (dadosSalvos) {
       try {
         const obj = JSON.parse(dadosSalvos);
-        
         if (Array.isArray(obj.placas) && obj.placas.length > 0) {
           listaPlacasMotorista = obj.placas.map((p: string) => String(p).trim().toUpperCase());
         } else if (obj.placa || obj.cavalo) {
@@ -228,36 +232,43 @@ export default function MinutasCaminhoneiroPage() {
     return true;
   });
 
+  /**
+   * RELATÓRIO PDF COM VALOR BRUTO E DESCONTO DE DIESEL INCLUÍDOS
+   */
   const handleBaixarPDF = () => {
     try {
       const doc = new jsPDF();
 
-      doc.setFontSize(18);
+      // Cabeçalho
+      doc.setFontSize(16);
       doc.setTextColor(15, 23, 42);
-      doc.text('PORTAL DO MOTORISTA - LOGÍSTICA', 14, 20);
-
-      doc.setFontSize(11);
-      doc.setTextColor(100, 116, 139);
-      doc.text(`Relatório de Extrato de Fretes - Veículo: ${placaSelecionada}`, 14, 28);
-      doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')} - ${new Date().toLocaleTimeString('pt-BR')}`, 14, 34);
-
-      doc.setFillColor(248, 250, 252);
-      doc.rect(14, 40, 182, 24, 'F');
+      doc.text('PORTAL DO MOTORISTA - LOGÍSTICA', 14, 18);
 
       doc.setFontSize(10);
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Relatório de Extrato de Fretes - Veículo: ${placaSelecionada}`, 14, 25);
+      doc.text(`Data de Emissão: ${new Date().toLocaleDateString('pt-BR')} - ${new Date().toLocaleTimeString('pt-BR')}`, 14, 31);
+
+      // Caixa de Resumo Financeiro no PDF
+      doc.setFillColor(248, 250, 252);
+      doc.rect(14, 36, 182, 24, 'F');
+
+      doc.setFontSize(9);
       doc.setTextColor(180, 83, 9);
-      doc.text(`TOTAL A RECEBER: ${formatarMoeda(resumo.totalLiquidoPendente)} (${resumo.qtdPendentes} pendentes)`, 18, 48);
+      doc.text(`TOTAL A RECEBER: Bruto: ${formatarMoeda(resumo.totalBrutoPendente)} | Líquido a Receber: ${formatarMoeda(resumo.totalLiquidoPendente)} (${resumo.qtdPendentes} pendentes)`, 18, 44);
 
       doc.setTextColor(22, 101, 52);
-      doc.text(`TOTAL JÁ RECEBIDO: ${formatarMoeda(resumo.totalLiquidoPago)} (${resumo.qtdPagas} pagas)`, 18, 56);
+      doc.text(`TOTAL JÁ RECEBIDO: Bruto: ${formatarMoeda(resumo.totalBrutoPago)} | Líquido Já Recebido: ${formatarMoeda(resumo.totalLiquidoPago)} (${resumo.qtdPagas} pagas)`, 18, 52);
 
+      // Dados Mapeados com Bruto e Diesel
       const dadosTabelaPDF = minutasFiltradas.map((m) => {
-        const vBruto = m.valorBruto || 0;
-        const vRpa = m.valorRpa !== undefined ? m.valorRpa : (vBruto * 0.027);
+        const vBruto = Number(m.valorBruto || 0);
+        const vRpa = m.valorRpa !== undefined ? Number(m.valorRpa) : (vBruto * 0.027);
+        const vDiesel = Number(m.descontoDiesel || 0);
 
         const vLiquido = m.statusPagamento === 'PAGO'
-          ? (m.valorFinalPago || m.valorLiquidoFinal || (vBruto - vRpa))
-          : (m.valorLiquidoFinal || (vBruto - vRpa));
+          ? Number(m.valorFinalPago || m.valorLiquidoFinal || (vBruto - vRpa - vDiesel))
+          : Number(m.valorLiquidoFinal || (vBruto - vRpa - vDiesel));
 
         const dataDoPagamento = m.dataPagamentoRealizado || m.dataPagamento;
 
@@ -266,19 +277,22 @@ export default function MinutasCaminhoneiroPage() {
           m.conteiner || 'N/D',
           formatarData(m.dataOp),
           `${m.terminalOrigem} -> ${m.terminalDestino}`,
+          formatarMoeda(vBruto),
+          vDiesel > 0 ? `- ${formatarMoeda(vDiesel)}` : 'R$ 0,00',
           formatarMoeda(vLiquido),
           m.statusPagamento === 'PAGO' ? formatarData(dataDoPagamento) : 'Aguardando',
           m.statusPagamento === 'PAGO' ? 'PAGO' : 'PENDENTE'
         ];
       });
 
+      // Tabela PDF com colunas reorganizadas
       autoTable(doc, {
-        startY: 70,
-        head: [['REF', 'Contêiner', 'Data Op.', 'Rota', 'Valor Liq.', 'Data PGTO', 'Status']],
+        startY: 66,
+        head: [['REF', 'Contêiner', 'Data Op.', 'Rota', 'Valor Bruto', 'Desc. Diesel', 'Valor Liq.', 'Data PGTO', 'Status']],
         body: dadosTabelaPDF,
-        headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold' },
+        headStyles: { fillColor: [37, 99, 235], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7 },
         alternateRowStyles: { fillColor: [248, 250, 252] },
-        styles: { fontSize: 8, cellPadding: 3 },
+        styles: { fontSize: 7, cellPadding: 2.5 },
       });
 
       doc.save(`Extrato_Fretes_${placaSelecionada}_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -328,7 +342,7 @@ export default function MinutasCaminhoneiroPage() {
               🚚 Minhas Minutas
             </h1>
             <p style={{ color: '#64748b', margin: '0.25rem 0 0 0', fontSize: '0.85rem', fontWeight: '500' }}>
-              Consulte os fretes e pagamentos dos seus veículos
+              Consulte os fretes, descontos de combustível e pagamentos
             </p>
           </div>
 
@@ -389,38 +403,77 @@ export default function MinutasCaminhoneiroPage() {
           </div>
         )}
 
+        {/* CARDS REORGANIZADOS: VALOR BRUTO EM PRIMEIRA COLUNA E LÍQUIDO A RECEBER À DIREITA */}
         <section style={estilos.gridTotais}>
+          
+          {/* CARD 1: PENDENTES (A RECEBER) */}
           <div style={estilos.cardKpiPendente}>
             <span style={estilos.tituloKpiPendente}>⏳ TOTAL A RECEBER (PENDENTES)</span>
-            <p style={{ ...estilos.valorKpi, color: '#d97706' }}>
-              {formatarMoeda(resumo.totalLiquidoPendente)}
-            </p>
-            <span style={{ fontSize: '0.75rem', color: '#78350f', fontWeight: '600' }}>
+            
+            <div style={estilos.caixaValoresKpi}>
+              <div>
+                <span style={estilos.labelSubValor}>BRUTO:</span>
+                <p style={{ ...estilos.valorKpiSecundario, color: '#b45309' }}>
+                  {formatarMoeda(resumo.totalBrutoPendente)}
+                </p>
+              </div>
+
+              <div style={estilos.divisorValoresKpi} />
+
+              <div>
+                <span style={estilos.labelSubValor}>LÍQUIDO A RECEBER:</span>
+                <p style={{ ...estilos.valorKpi, color: '#d97706' }}>
+                  {formatarMoeda(resumo.totalLiquidoPendente)}
+                </p>
+              </div>
+            </div>
+
+            <span style={{ fontSize: '0.75rem', color: '#78350f', fontWeight: '600', marginTop: '0.35rem', display: 'block' }}>
               {resumo.qtdPendentes} viagem(ns) aguardando pagamento
             </span>
           </div>
 
+          {/* CARD 2: PAGOS (JÁ RECEBIDO) */}
           <div style={estilos.cardKpiPago}>
             <span style={estilos.tituloKpiPago}>✅ TOTAL JÁ RECEBIDO (PAGOS)</span>
-            <p style={{ ...estilos.valorKpi, color: '#16a34a' }}>
-              {formatarMoeda(resumo.totalLiquidoPago)}
-            </p>
-            <span style={{ fontSize: '0.75rem', color: '#14532d', fontWeight: '600' }}>
+            
+            <div style={estilos.caixaValoresKpi}>
+              <div>
+                <span style={estilos.labelSubValor}>BRUTO:</span>
+                <p style={{ ...estilos.valorKpiSecundario, color: '#15803d' }}>
+                  {formatarMoeda(resumo.totalBrutoPago)}
+                </p>
+              </div>
+
+              <div style={estilos.divisorValoresKpi} />
+
+              <div>
+                <span style={estilos.labelSubValor}>LÍQUIDO JÁ RECEBIDO:</span>
+                <p style={{ ...estilos.valorKpi, color: '#16a34a' }}>
+                  {formatarMoeda(resumo.totalLiquidoPago)}
+                </p>
+              </div>
+            </div>
+
+            <span style={{ fontSize: '0.75rem', color: '#14532d', fontWeight: '600', marginTop: '0.35rem', display: 'block' }}>
               {resumo.qtdPagas} pagamento(s) efetuado(s)
             </span>
           </div>
 
+          {/* CARD 3: TOTAL DE VIAGENS */}
           <div style={estilos.cardKpi}>
             <span style={estilos.tituloKpi}>🚚 TOTAL DE VIAGENS</span>
-            <p style={{ ...estilos.valorKpi, color: '#2563eb' }}>
+            <p style={{ ...estilos.valorKpi, color: '#2563eb', margin: '0.5rem 0' }}>
               {resumo.totalMinutas}
             </p>
             <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>
               Pendentes: {resumo.qtdPendentes} | Pagas: {resumo.qtdPagas}
             </span>
           </div>
+
         </section>
 
+        {/* ABAS DE FILTRO */}
         <div style={estilos.containerAbas}>
           <button
             onClick={() => setAbaAtiva('TODAS')}
@@ -442,6 +495,7 @@ export default function MinutasCaminhoneiroPage() {
           </button>
         </div>
 
+        {/* TABELA DE MINUTAS */}
         <section style={estilos.cardBoxTabela}>
           <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <table style={estilos.tabela}>
@@ -451,6 +505,8 @@ export default function MinutasCaminhoneiroPage() {
                   <th style={estilos.th}>Data Entrega/Op.</th>
                   <th style={estilos.th}>Origem ➔ Destino</th>
                   <th style={estilos.th}>Tipo PGTO</th>
+                  <th style={estilos.th}>Valor Bruto</th>
+                  <th style={estilos.th}>Desc. Diesel</th>
                   <th style={estilos.th}>Valor Líquido</th>
                   <th style={estilos.th}>Data PGTO</th>
                   <th style={estilos.th}>Status</th>
@@ -459,18 +515,19 @@ export default function MinutasCaminhoneiroPage() {
               <tbody>
                 {minutasFiltradas.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: '#64748b', fontWeight: '600' }}>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: '2rem', color: '#64748b', fontWeight: '600' }}>
                       Nenhuma minuta encontrada para a placa selecionada.
                     </td>
                   </tr>
                 ) : (
                   minutasFiltradas.map((m) => {
-                    const vBruto = m.valorBruto || 0;
-                    const vRpa = m.valorRpa !== undefined ? m.valorRpa : (vBruto * 0.027);
+                    const vBruto = Number(m.valorBruto || 0);
+                    const vRpa = m.valorRpa !== undefined ? Number(m.valorRpa) : (vBruto * 0.027);
+                    const vDiesel = Number(m.descontoDiesel || 0);
 
                     const vLiquido = m.statusPagamento === 'PAGO'
-                      ? (m.valorFinalPago || m.valorLiquidoFinal || (vBruto - vRpa))
-                      : (m.valorLiquidoFinal || (vBruto - vRpa));
+                      ? Number(m.valorFinalPago || m.valorLiquidoFinal || (vBruto - vRpa - vDiesel))
+                      : Number(m.valorLiquidoFinal || (vBruto - vRpa - vDiesel));
 
                     const dataDoPagamento = m.dataPagamentoRealizado || m.dataPagamento;
 
@@ -488,6 +545,15 @@ export default function MinutasCaminhoneiroPage() {
                           {m.terminalOrigem} ➔ {m.terminalDestino}
                         </td>
                         <td style={estilos.td}>{m.tipoPgto}</td>
+                        
+                        <td style={{ ...estilos.td, fontWeight: '700', color: '#334155' }}>
+                          {formatarMoeda(vBruto)}
+                        </td>
+
+                        <td style={{ ...estilos.td, fontWeight: '700', color: vDiesel > 0 ? '#dc2626' : '#94a3b8' }}>
+                          {vDiesel > 0 ? `- ${formatarMoeda(vDiesel)}` : 'R$ 0,00'}
+                        </td>
+
                         <td style={{ ...estilos.td, fontWeight: '800', color: m.statusPagamento === 'PAGO' ? '#16a34a' : '#d97706' }}>
                           {formatarMoeda(vLiquido)}
                         </td>
@@ -589,7 +655,7 @@ const estilos: { [key: string]: React.CSSProperties } = {
   },
   gridTotais: { 
     display: 'grid', 
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
     gap: '1rem', 
     marginBottom: '1.25rem' 
   },
@@ -617,7 +683,28 @@ const estilos: { [key: string]: React.CSSProperties } = {
   tituloKpi: { fontSize: '0.75rem', fontWeight: '800', color: '#64748b', textTransform: 'uppercase' },
   tituloKpiPendente: { fontSize: '0.75rem', fontWeight: '800', color: '#b45309', textTransform: 'uppercase' },
   tituloKpiPago: { fontSize: '0.75rem', fontWeight: '800', color: '#166534', textTransform: 'uppercase' },
-  valorKpi: { margin: '0.3rem 0', fontSize: '1.35rem', fontWeight: '800' },
+  
+  caixaValoresKpi: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    margin: '0.35rem 0',
+  },
+  divisorValoresKpi: {
+    width: '1px',
+    height: '28px',
+    backgroundColor: 'rgba(0, 0, 0, 0.12)',
+  },
+  labelSubValor: {
+    fontSize: '0.65rem',
+    fontWeight: '800',
+    color: '#64748b',
+    textTransform: 'uppercase',
+    display: 'block',
+  },
+  valorKpi: { margin: 0, fontSize: '1.25rem', fontWeight: '800' },
+  valorKpiSecundario: { margin: 0, fontSize: '1.1rem', fontWeight: '800' },
+
   containerAbas: { display: 'flex', gap: '0.35rem', marginBottom: '1rem', overflowX: 'auto' },
   botaoAba: { 
     flex: 1, 
