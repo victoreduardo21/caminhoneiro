@@ -176,7 +176,7 @@ export default function Navbar({ usuario }: NavbarProps) {
         <div style={estilos.cabecalhoLogo}>
           <div style={estilos.iconeLogo}>🚛</div>
           <div>
-            <h2 style={estilos.tituloLogo}>PORTAL MOTORISTA</h2>
+            <h2 style={estilos.tituloLogo}>PORTAL Proprietario</h2>
             <p style={estilos.subtituloLogo}>Sistema Logístico</p>
           </div>
         </div>

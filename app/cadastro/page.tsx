@@ -173,7 +173,7 @@ export default function CadastroCaminhoneiroPage() {
         
         {/* CABEÇALHO DO CARD */}
         <div style={estilos.cabecalho}>
-          <div style={estilos.badgePortal}>NOVO REGISTO • MOTORISTA</div>
+          <div style={estilos.badgePortal}>NOVO REGISTO • Proprietario caminhão</div>
           <h1 className="titulo-cadastro" style={estilos.tituloModal}>Crie a sua Conta</h1>
           <p className="subtitulo-cadastro" style={estilos.subtituloModal}>
             Preencha os seus dados para consultar minutas e extratos de frete
